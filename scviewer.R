@@ -35,7 +35,7 @@ app_config <- yaml::read_yaml(file='config.yaml')
 # define the UI
 ## header
 dashboardHeader(disable=FALSE,
-                title=app_config$project_title,
+                title=app_config$title,
                 titleWidth='1000px') -> ui_header
 
 ## sidebar
@@ -194,7 +194,7 @@ server <- function(input, output, session) {
     ### make and return a data.frame that is used to make plots
     data.frame(object$reductions[[input_reduction_method()]] %>% set_names(str_c, '2d', sep='.'),
                object$reductions[[str_c(input_reduction_method(), '3d', sep='_')]] %>% set_names(str_c, '3d', sep='.'),
-               feature_value=object$rna_data[,feature],
+               feature_value=object$feature_values[,feature],
                object$metadata) %>%
       mutate(seurat_clusters=sprintf(fmt='Cluster %s: a cell type', seurat_clusters) %>% factor() %>% fct_relevel(mixedsort) %>% fct_relevel(rev)) %>%
       arrange(feature_value) -> data_to_plot
