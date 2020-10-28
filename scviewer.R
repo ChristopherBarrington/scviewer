@@ -187,7 +187,7 @@ server <- function(input, output, session) {
                      title='Feature not found!',
                      text=sprintf('The specified feature "%s" was not found!', feature),
                      type='error')
-      updateTextInput(session=session, inputId='feature', value='SOX2')
+      updateTextInput(session=session, inputId='feature', value=app_config$initial_feature)
       return(NULL)
     }
       
