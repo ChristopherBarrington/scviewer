@@ -13,6 +13,8 @@ Assumptions:
 * `seurat@reductions` must contain a `pca` entry and describe at least 3 components. Both '2D' and '3D' PCA coordinates are taken from the `pca` slot.
 
 ```r
+library(tidyverse)
+
 seurat_to_scviewer <- function(seurat, idents='seurat_clusters')
   list(feature_values=Matrix::cBind({seurat@assays$RNA@data %>% Matrix::t()},
                                     {select(seurat@meta.data, starts_with('GeneModule')) %>% set_names(str_remove, 'GeneModule-') %>% Matrix::as.matrix()}),
@@ -38,3 +40,6 @@ The `rds` file must be a `list` and contain:
 
 The `yaml` configuration file contains parameters for the session. The `datasets` section of the configuration file is used to populate the dataset selection dropdown. It is a two-level list (hardcoded at the moment) and must contain an `rds_file` key which can be loaded into the session and be properly formatted.
 
+# Running scviewer
+
+The `scviewer.R` (renamed to `app.R`) and `config.yaml` files should be saved in the same directory and visited in a web browser. It's a `shiny` app.
