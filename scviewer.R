@@ -15,7 +15,8 @@ library(waiter)
 library(magrittr)
 library(tidyverse)
 
-str_c('/////////////// started at:', date(), sep=' ') %>% message()
+message('/// ----- ----- ----- ----- -----')
+str_c('/// started at:', date(), sep=' ') %>% message()
 
 options(warn=-1,
         dplyr.summarise.inform=FALSE)
@@ -29,7 +30,7 @@ redrawing_plot <- tagList(
   spin_3k())
 
 # load the project description configuration file
-app_config <- yaml::read_yaml(file='test_config.yaml')
+app_config <- yaml::read_yaml(file='config.yaml')
 
 # define the UI
 ## header
