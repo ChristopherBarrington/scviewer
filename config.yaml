@@ -1,0 +1,10 @@
+project_title: An informative project title to go in the header
+datasets:
+  dropdown group 1:
+    dataset 1:
+      rds_file: /path/to/a/trimmed/dataset.rds
+    dataset 2:
+      rds_file: relative/path/to/a/trimmed/dataset.rds
+  dropdown group 2:
+    dataset 1:
+      rds_file: /path/to/another/trimmed/dataset.rds
