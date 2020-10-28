@@ -1,6 +1,7 @@
 .libPaths(c(.libPaths(), 'lib'))
 
 library(shiny)
+library(dqshiny)
 library(htmlwidgets)
 library(shinydashboard)
 library(dashboardthemes)
