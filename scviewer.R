@@ -47,23 +47,32 @@ dashboardSidebar(disable=FALSE,
                                 label='Select a dataset',
                                 choices={app_config$datasets %>% map_depth(2, pluck, 'rds_file')},
                                 options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
-                 textInput(inputId='feature', label='Feature', value=app_config$initial_feature, placeholder='Feature'),
-                 sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=-1, max=0, step=0.05, value=c(-1,0)),
-                 {list(`Brewer [sequential]`=list(`brewer:Blues`=brewer_pal(palette='Blues')(8),
-                                                  `brewer:BuPu`=brewer_pal(palette='BuPu')(8),
-                                                  `brewer:GnBu`=brewer_pal(palette='GnBu')(8),
-                                                  `brewer:Greens`=brewer_pal(palette='Greens')(8),
-                                                  `brewer:Greys`=brewer_pal(palette='Greys')(8),
-                                                  `brewer:Oranges`=brewer_pal(palette='Oranges')(8),
-                                                  `brewer:Purples`=brewer_pal(palette='Purples')(8),
-                                                  `brewer:RdPu`=brewer_pal(palette='RdPu')(8),
-                                                  `brewer:Reds`=brewer_pal(palette='Reds')(8),
-                                                  `brewer:YlGn`=brewer_pal(palette='YlGn')(8),
-                                                  `brewer:YlGnBu`=brewer_pal(palette='YlGnBu')(8)),
-                       `Viridis [sequential]`=list(`viridis:magma`=viridis_pal(option='magma', direction=1)(8),
-                                                   `viridis:plasma`=viridis_pal(option='plasma', direction=1)(8),
-                                                   `viridis:inferno`=viridis_pal(option='inferno', direction=1)(8),
-                                                   `viridis:viridis`=viridis_pal(option='viridis', direction=1)(8))) %>%
+                 autocomplete_input(id='feature', label='Feature', placeholder='Feature', options=app_config$initial_feature, value=app_config$initial_feature),
+                 sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
+                 {list(`Brewer [sequential]`=list(`brewer:Blues:f`=brewer_pal(palette='Blues', direction=1)(8),
+                                                  `brewer:BuPu:f`=brewer_pal(palette='BuPu', direction=1)(8),
+                                                  `brewer:GnBu:f`=brewer_pal(palette='GnBu', direction=1)(8),
+                                                  `brewer:Greens:f`=brewer_pal(palette='Greens', direction=1)(8),
+                                                  `brewer:Greys:f`=brewer_pal(palette='Greys', direction=1)(8),
+                                                  `brewer:Oranges:f`=brewer_pal(palette='Oranges', direction=1)(8),
+                                                  `brewer:Purples:f`=brewer_pal(palette='Purples', direction=1)(8),
+                                                  `brewer:RdPu:f`=brewer_pal(palette='RdPu', direction=1)(8),
+                                                  `brewer:Reds:f`=brewer_pal(palette='Reds', direction=1)(8),
+                                                  `brewer:YlGn:f`=brewer_pal(palette='YlGn', direction=1)(8),
+                                                  `brewer:YlGnBu:f`=brewer_pal(palette='YlGnBu', direction=1)(8)),
+                       `Viridis [sequential]`=list(`viridis:magma:f`=viridis_pal(option='magma', direction=1)(8),
+                                                   `viridis:plasma:f`=viridis_pal(option='plasma', direction=1)(8),
+                                                   `viridis:inferno:f`=viridis_pal(option='inferno', direction=1)(8),
+                                                   `viridis:viridis:f`=viridis_pal(option='viridis', direction=1)(8)),
+                       `Brewer [divergent]`=list(`brewer:RdYlGn:r`=brewer_pal(palette='RdYlGn', direction=-1)(8),
+                                                 `brewer:PRGn:r`=brewer_pal(palette='PRGn', direction=-1)(8),
+                                                 `brewer:RdYlBu:r`=brewer_pal(palette='RdYlBu', direction=-1)(8),
+                                                 `brewer:RdGy:r`=brewer_pal(palette='RdGy', direction=-1)(8),
+                                                 `brewer:RdBu:r`=brewer_pal(palette='RdBu', direction=-1)(8),
+                                                 `brewer:PuOr:r`=brewer_pal(palette='PuOr', direction=-1)(8),
+                                                 `brewer:PiYG:r`=brewer_pal(palette='PiYG', direction=-1)(8),
+                                                 `brewer:BrBG:r`=brewer_pal(palette='BrBG', direction=-1)(8),
+                                                 `brewer:Spectral:r`=brewer_pal(palette='Spectral', direction=-1)(8))) %>%
                      palettePicker(inputId='predefined_palette', label='Colour palette', 
                                    selected='brewer:YlGnBu', textColor=rgb(red=0, green=0, blue=0, alpha=0),
                                    pickerOpts=list(`live-search`=FALSE, size=10))},
@@ -102,6 +111,9 @@ server <- function(input, output, session) {
     #### load the specified rds file
     sprintf(fmt='/// loading %s', input$rds_to_load) %>% message()
     object <- readRDS(input$rds_to_load)
+
+    ####
+    update_autocomplete_input(session=session, id='feature', options=colnames(object$feature_values), value=app_config$initial_feature)
 
     #### change the feature names in the data matrix to all lower case
     #### - feature names don't need to be input as case-sensitive
@@ -146,7 +158,10 @@ server <- function(input, output, session) {
 
     #### save palette source and name into the reactive values list
     selected_palette$package <- sp[[1]]
-    selected_palette$name <- sp[[2]]})
+    selected_palette$name <- sp[[2]]
+    selected_palette$type <- sp[[3]]
+    selected_palette$direction <- sp[[3]] %>% switch(f=1, r=-1)
+  })
 
   ## on startup, show reminder to load a dataset
   sendSweetAlert(
@@ -212,11 +227,13 @@ server <- function(input, output, session) {
   ## make selected feature scatterplots
   ### 2D ggplot
   output$feature_scatterplot <- renderPlot({
-    if(is.null(selected_palette$package) || input_feature_value_limits$min<0)
+    if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
 
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
+    palette_direction <- selected_palette$direction
+
     get_labels <- function(x) {
       x %>% is.na() %>% not() %>% which() %>% range() -> idx
       x[-idx] <- ''
@@ -224,7 +241,7 @@ server <- function(input, output, session) {
     }
 
     if(palette_package=='brewer') {
-      colour_gradient <- scale_colour_distiller(palette=picked_palette, direction='reverse', labels=get_labels, limits=input_feature_value_limits$limits, oob=squish)
+      colour_gradient <- scale_colour_distiller(palette=picked_palette, direction=palette_direction, labels=get_labels, limits=input_feature_value_limits$limits, oob=squish)
     } else if(palette_package=='viridis') {
       colour_gradient <- scale_colour_viridis_c(option=picked_palette, direction=1, labels=get_labels, limits=input_feature_value_limits$limits, oob=squish)
     } else {
@@ -238,8 +255,7 @@ server <- function(input, output, session) {
       colour_gradient +
       guides(color=guide_colourbar(label.position='bottom')) +
       theme_void() +
-      theme(#legend.box.background=element_blank(),
-            legend.box.margin=margin(r=10, b=10, t=0, l=0),
+      theme(legend.box.margin=margin(r=10, b=10, t=0, l=0),
             legend.position=c(1,0),
             legend.justification=c(1,0),
             legend.direction='horizontal',
@@ -250,8 +266,18 @@ server <- function(input, output, session) {
 
   ### 3D plotly
   output$feature_scatterplot_3d <- renderPlotly({
-    if(is.null(selected_palette$package) || input_feature_value_limits$min<0)
+    if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
+
+    palette_package <- selected_palette$package
+    picked_palette <- selected_palette$name
+    palette_direction <- selected_palette$direction
+
+    if(palette_package=='brewer') {
+      colour_gradient <- brewer_pal(palette=picked_palette, direction=palette_direction)(8)
+    } else if(palette_package=='viridis') {
+      colour_gradient <- viridis_pal(option=picked_palette, direction=1,)
+    }
 
     data_to_plot() %>%
       mutate(feature_value=squish(x=feature_value, range=input_feature_value_limits$limits)) %>%
@@ -270,12 +296,11 @@ server <- function(input, output, session) {
              displayModeBar=TRUE) %>%
       add_markers(x=~x.3d, y=~y.3d, z=~z.3d,
                   color=~feature_value,
-                  colors=selected_palette$name,
                   text=~seurat_clusters,
+                  colors=colour_gradient,
                   marker=list(symbol='circle-dot',
                               size=input_point_size()*2,
                               line=list(width=0)),
-
                   hoverinfo='text') %>%
       # colorbar(title=input_feature(),
       #          yanchor='center', y=0.5)
@@ -330,14 +355,19 @@ server <- function(input, output, session) {
   
   ## make cluster/feature signal barplot
   output$cluster_feature_barplot <- renderPlot({
-    palette_package <- selected_palette$package
-    picked_palette <- selected_palette$name
-  
+    # palette_package <- selected_palette$package
+    # picked_palette <- selected_palette$name
+    # palette_direction <- selected_palette$direction
+
+    palette_package <- 'brewer'
+    picked_palette <- 'Blues'
+    palette_direction <- 1
+
     data_to_plot <- data_to_plot()
     n_clusters <- levels(data_to_plot$seurat_clusters) %>% length()
     
     if(palette_package=='brewer') {
-      fill_gradient <- scale_fill_distiller(palette=picked_palette, direction='reverse')
+      fill_gradient <- scale_fill_distiller(palette=picked_palette, direction=palette_direction)
     } else if(palette_package=='viridis') {
       fill_gradient <- scale_fill_viridis_c(option=picked_palette, direction=1)
     } else {
