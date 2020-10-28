@@ -105,7 +105,7 @@ server <- function(input, output, session) {
 
     #### change the feature names in the data matrix to all lower case
     #### - feature names don't need to be input as case-sensitive
-    colnames(object$rna_data) %<>% str_to_lower()
+    colnames(object$feature_values) %<>% str_to_lower()
     
     #### stop the waiter
     waiter_hide()
@@ -182,7 +182,7 @@ server <- function(input, output, session) {
     waiter$show()
 
     ### check that the feature is in the matrix
-    if(!is.element(el=feature, set=colnames(object$rna_data))) {
+    if(!is.element(el=feature, set=colnames(object$feature_values))) {
       sendSweetAlert(session=session,
                      title='Feature not found!',
                      text=sprintf('The specified feature "%s" was not found!', feature),
