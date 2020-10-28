@@ -29,7 +29,7 @@ redrawing_plot <- tagList(
   spin_3k())
 
 # load the project description configuration file
-app_config <- yaml::read_yaml(file='config.yaml')
+app_config <- yaml::read_yaml(file='test_config.yaml')
 
 # define the UI
 ## header
@@ -46,8 +46,8 @@ dashboardSidebar(disable=FALSE,
                                 label='Select a dataset',
                                 choices={app_config$datasets %>% map_depth(2, pluck, 'rds_file')},
                                 options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
-                 textInput(inputId='feature', label='Feature', value='SOX2', placeholder='Feature'),
-                 sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,1)),
+                 textInput(inputId='feature', label='Feature', value=app_config$initial_feature, placeholder='Feature'),
+                 sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=-1, max=0, step=0.05, value=c(-1,0)),
                  {list(`Brewer [sequential]`=list(`brewer:Blues`=brewer_pal(palette='Blues')(8),
                                                   `brewer:BuPu`=brewer_pal(palette='BuPu')(8),
                                                   `brewer:GnBu`=brewer_pal(palette='GnBu')(8),
@@ -131,8 +131,8 @@ server <- function(input, output, session) {
   ### collect the colour scale limits
   input_feature_value_limits <- reactiveValues()
   observe({
-    input_feature_value_limits$min <- input$feature_value_limits[0]
-    input_feature_value_limits$max <- input$feature_value_limits[1]
+    input_feature_value_limits$min <- input$feature_value_limits[1]
+    input_feature_value_limits$max <- input$feature_value_limits[2]
     input_feature_value_limits$limits <- input$feature_value_limits})
 
   ### collect the selected colour palette
@@ -211,7 +211,7 @@ server <- function(input, output, session) {
   ## make selected feature scatterplots
   ### 2D ggplot
   output$feature_scatterplot <- renderPlot({
-    if(is.null(selected_palette$package))
+    if(is.null(selected_palette$package) || input_feature_value_limits$min<0)
       return(NULL)
 
     palette_package <- selected_palette$package
@@ -249,6 +249,8 @@ server <- function(input, output, session) {
 
   ### 3D plotly
   output$feature_scatterplot_3d <- renderPlotly({
+    if(is.null(selected_palette$package) || input_feature_value_limits$min<0)
+      return(NULL)
 
     data_to_plot() %>%
       mutate(feature_value=squish(x=feature_value, range=input_feature_value_limits$limits)) %>%
@@ -354,7 +356,7 @@ server <- function(input, output, session) {
                 to_value=quantile(feature_value, 0.75)) %>%
       ggplot() +
       aes(x=seurat_clusters, fill=mean_value, colour=seurat_clusters) +
-      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', input_feature()), fill=sprintf(fmt='Mean signal', input_feature()), size='Cells in cluster', colour='Cell type') +
+      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', input_feature()), fill=sprintf(fmt='Mean signal', input_feature()), size='Cells in cluster', colour='Cell type', title=sprintf(fmt='%s in clusters', input_feature())) +
       geom_linerange(mapping=aes(ymin=from_value, ymax=to_value), size=2) +
       geom_point(mapping=aes(y=median_value, size=expressing_cells/cells_in_cluster*100), shape=21, colour='darkgrey', stroke=1) +
       scale_size_continuous(labels=function(l) str_c(l, '%'), range=c(2,8)) +
