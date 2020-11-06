@@ -1,5 +1,6 @@
 .libPaths(c(.libPaths(), 'lib'))
 
+library(rhdf5)
 library(shiny)
 library(dqshiny)
 library(shinydashboard)
@@ -19,18 +20,11 @@ message('/// ----- ----- ----- ----- -----')
 str_c('/// started at:', date(), sep=' ') %>% message()
 
 options(warn=-1,
-        dplyr.summarise.inform=FALSE)
-
-# define the loading object screen
-reading_rds_screen <- tagList(
-  spin_atebits(),
-  h5('Reading data into session')) 
-
-redrawing_plot <- tagList(
-  spin_3k())
+        dplyr.summarise.inform=FALSE,
+        scviewer.verbose=FALSE)
 
 # load the project description configuration file
-app_config <- yaml::read_yaml(file='config.yaml')
+app_config <- yaml::read_yaml(file='test_config.yaml')
 
 # define the UI
 ## header
@@ -43,11 +37,13 @@ dashboardSidebar(disable=FALSE,
                  tags$style(type='text/css', '.sidebar-toggle {visibility: hidden !important;}'),
                  tags$style(type='text/css', '.main-header .logo {text-align:left !important;}'),
                  tags$style(type='text/css', '.irs-grid-text {visibility: hidden !important;}'),
-                 selectizeInput(inputId='rds_to_load',
+                 tags$style(type='text/css', '.autocomplete-items div:hover {background-color: #DDDDDD;}'),
+                 selectizeInput(inputId='filename',
                                 label='Select a dataset',
-                                choices={app_config$datasets %>% map_depth(2, pluck, 'rds_file')},
+                                choices={app_config$datasets %>% map_depth(2, pluck, 'file')},
                                 options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
-                 autocomplete_input(id='feature', label='Feature', placeholder='Feature', options=app_config$initial_feature, value=app_config$initial_feature),
+                 # autocomplete_input(id='feature', label='Feature', placeholder='Feature', options=app_config$initial_feature, value=app_config$initial_feature),
+                 autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
                  sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
                  {list(`Brewer [sequential]`=list(`brewer:Blues:f`=brewer_pal(palette='Blues', direction=1)(8),
                                                   `brewer:BuPu:f`=brewer_pal(palette='BuPu', direction=1)(8),
@@ -81,7 +77,7 @@ dashboardSidebar(disable=FALSE,
 
 ## main body, plots
 dashboardBody(shinyDashboardThemes(theme='grey_light'),
-              fillPage(use_waiter(),
+              fillPage(use_waiter(), waiter_on_busy(html=tagList(spin_atebits()), color=rgb(red=1, green=1, blue=1, alpha=0.5)),
                        tags$style(type='text/css', '#cluster_scatterplot {width: 100% !important; height: calc(50vh - 40px) !important;}'),
                        tags$style(type='text/css', '#cluster_scatterplot_3d {width: 100% !important; height: calc(50vh - 40px) !important;}'),
                        tags$style(type='text/css', '#feature_scatterplot {width: 100% !important; height: calc(50vh - 40px) !important;}'),
@@ -100,62 +96,96 @@ dashboardPage(header=ui_header, sidebar=ui_sidebar, body=ui_body, title=NULL) ->
 
 # define the server
 server <- function(input, output, session) {
+  app_data <- reactiveValues()
+  input_feature_value_limits <- reactiveValues()
+
   ## get UI inputs
-  ### load the dataset rds file
-  input_object <- reactive({
-    req(input$rds_to_load)
+  ### load the dataset file
+  observe(x={
+    req(input$filename)
+    message('/// initialising from: ', input$filename)
 
-    #### cover the screen with the loading rds waiter
-    waiter_show(html=reading_rds_screen, color=rgb(red=1, green=1, blue=1, alpha=0.5))
+    app_data$feature_name <- NULL
+    app_data$feature_values <- NULL
 
-    #### load the specified rds file
-    sprintf(fmt='/// loading %s', input$rds_to_load) %>% message()
-    object <- readRDS(input$rds_to_load)
+    app_data$reduction_2d <- NULL
+    app_data$reduction_3d <- NULL
 
-    ####
-    update_autocomplete_input(session=session, id='feature', options=colnames(object$feature_values), value=app_config$initial_feature)
+    h5read(file=input$filename, name='metadata') %>%
+      mutate(seurat_clusters=sprintf(fmt='Cluster %s: a cell type', seurat_clusters) %>%
+                               factor() %>%
+                               fct_relevel(mixedsort) %>%
+                               fct_relevel(rev)) -> app_data$metadata
+    app_data$h5_file <- input$filename
 
-    #### change the feature names in the data matrix to all lower case
-    #### - feature names don't need to be input as case-sensitive
-    colnames(object$feature_values) %<>% str_to_lower()
-    
-    #### stop the waiter
-    waiter_hide()
+    all_features <- h5read(file=app_data$h5_file, name='features/names')
+    update_autocomplete_input(session=session, id='feature',
+                              options=all_features,
+                              value=app_config$initial_feature)})
 
-    #### return the loaded rds object
-    object})
-  
-  ### collect the user-specified feature name and reduce reactivity
-  input_feature <- reactive({
-    sprintf(fmt='%s signal limits', input$feature) %>%
-      updateSliderInput(session=session, inputId='feature_value_limits')
-    input$feature}) %>%
-    debounce(1000)
-  
-  ### collect the reduction method
-  input_reduction_method <- reactive({
-    input$reduction_method})
+  observe(x={if(getOption('scviewer.verbose', FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
 
-  ### collect the point size and reduce reactivity
-  input_point_size <- reactive({
-    input$point_size}) %>%
-    debounce(500)
+  ### collect the user-specified feature name
+  observe(x={
+    req(app_data$h5_file)
+    input_feature <- if_else(input$feature=='', app_config$initial_feature, input$feature)
+    sprintf('/// reading feature [%s] from: %s', input_feature, app_data$h5_file) %>% message()
+
+    h5_file <- app_data$h5_file
+    h5_name <- input_feature %>% str_to_lower() %>% sprintf(fmt='features/values/%s') #%T>% print()
+    feature_values <- h5read(file=h5_file, name=h5_name)
+     
+      slider_min <- min(feature_values) %>% subtract(0.05) %>% round(digits=1)
+      slider_max <- max(feature_values) %>% add(0.05) %>% round(digits=1)
+     
+      sprintf(fmt='%s signal limits', input_feature) %>%
+        updateSliderInput(session=session, inputId='feature_value_limits')
+     
+      updateSliderInput(session=session, inputId='feature_value_limits',
+                        min=slider_min, max=slider_max,
+                        value=c(slider_min, slider_max))
+
+      app_data$feature_name <- input_feature
+      app_data$feature_values <- feature_values})
   
   ### collect the colour scale limits
-  input_feature_value_limits <- reactiveValues()
-  observe({
+  observeEvent(eventExpr=input$feature_value_limits, ignoreInit=TRUE, handlerExpr={
+    req(input$feature_value_limits)
+    req(app_data$feature_name)
+    sprintf('/// setting value limits for %s', isolate(app_data$feature_name)) %>% message()
+
     input_feature_value_limits$min <- input$feature_value_limits[1]
     input_feature_value_limits$max <- input$feature_value_limits[2]
     input_feature_value_limits$limits <- input$feature_value_limits})
+ 
+  ### collect the reduction method
+  observe(x={
+    req(app_data$h5_file)
+    req(input$reduction_method)
+    sprintf('/// reading reduction [%s] from: %s', input$reduction_method, app_data$h5_file) %>% message()
+
+    h5_file <- app_data$h5_file
+    h5_name_2d <- input$reduction_method %>% sprintf(fmt='reductions/%s') #%T>% print()
+    h5_name_3d <- str_c(input$reduction_method, '_3d') %>% sprintf(fmt='reductions/%s') #%T>% print()
+
+    app_data$reduction_2d <- h5read(file=h5_file, name=h5_name_2d)
+    app_data$reduction_3d <- h5read(file=h5_file, name=h5_name_3d)})
+
+  ## collect the point size and reduce reactivity
+  input_point_size <- reactive(x={
+    sprintf('/// set point size [%s]', input$point_size) %>% message()
+    input$point_size}) %>%
+    debounce(500)
 
   ### collect the selected colour palette
   selected_palette <- reactiveValues()
-  observe({
+  observe(x={
     req(input$predefined_palette)
-
+    sprintf('/// selected palette [%s]', input$predefined_palette) %>% message()
+ 
     #### split the palette source and name from the string
     input$predefined_palette %>% str_split(pattern=':') %>% pluck(1) -> sp
-
+ 
     #### save palette source and name into the reactive values list
     selected_palette$package <- sp[[1]]
     selected_palette$name <- sp[[2]]
@@ -169,7 +199,7 @@ server <- function(input, output, session) {
     title='Getting started',
     text='Select a dataset to view using the "Datasets" dropdown',
     type='info')
-  
+
   ## common elements
   ### background colour of plot panles
   panel_background_rgb <- rgb(red=1, green=1, blue=1, alpha=0)
@@ -179,54 +209,16 @@ server <- function(input, output, session) {
   list(activecolor='#66965a',
        color='lightgrey',
        bgcolor='transparent') -> plotly_config$modebar
-                          
-  ### a waiter screen for plot panels being redrawn
-  Waiter$new(id=c('cluster_feature_barplot',
-                  'feature_scatterplot', 'feature_scatterplot_3d',
-                  'cluster_scatterplot', 'cluster_scatterplot_3d'),
-             html=redrawing_plot,
-             color=rgb(red=1, green=1, blue=1, alpha=0.6)) -> waiter
-
-  ## use inputs to get an input dataset
-  data_to_plot <- reactive(x={
-    req(input_object)
-    object <- input_object()
-    feature <- input_feature() %>% str_to_lower()
-
-    ### show the loading screens
-    waiter$show()
-
-    ### check that the feature is in the matrix
-    if(!is.element(el=feature, set=colnames(object$feature_values))) {
-      sendSweetAlert(session=session,
-                     title='Feature not found!',
-                     text=sprintf('The specified feature "%s" was not found!', feature),
-                     type='error')
-      updateTextInput(session=session, inputId='feature', value=app_config$initial_feature)
-      return(NULL)
-    }
-      
-    ### make and return a data.frame that is used to make plots
-    data.frame(object$reductions[[input_reduction_method()]] %>% set_names(str_c, '2d', sep='.'),
-               object$reductions[[str_c(input_reduction_method(), '3d', sep='_')]] %>% set_names(str_c, '3d', sep='.'),
-               feature_value=object$feature_values[,feature],
-               object$metadata) %>%
-      mutate(seurat_clusters=sprintf(fmt='Cluster %s: a cell type', seurat_clusters) %>% factor() %>% fct_relevel(mixedsort) %>% fct_relevel(rev)) %>%
-      arrange(feature_value) -> data_to_plot
-
-    ### update the slider
-    slider_min <- min(data_to_plot$feature_value) %>% subtract(0.05) %>% round(digits=1)
-    slider_max <- max(data_to_plot$feature_value) %>% add(0.05) %>% round(digits=1)
-    updateSliderInput(session=session, inputId='feature_value_limits',
-                      min=slider_min, max=slider_max,
-                      value=c(slider_min, slider_max))
-
-    ### return the data
-    data_to_plot})
 
   ## make selected feature scatterplots
   ### 2D ggplot
   output$feature_scatterplot <- renderPlot({
+    req(app_data$reduction_2d)
+    req(input_feature_value_limits$min)
+    req(isolate(app_data$feature_values))
+    req(isolate(app_data$feature_name))
+    message('/// making 2d feature scatterplot')
+
     if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
 
@@ -247,10 +239,12 @@ server <- function(input, output, session) {
     } else {
       colour_gradient <- scale_colour_gradient()
     }
-    
-    ggplot(data=data_to_plot()) +
-      aes(x=x.2d, y=y.2d, colour=feature_value) +
-      labs(title=sprintf(fmt='%s in cells', input_feature())) +
+   
+    data.frame(app_data$reduction_2d, feature_value=isolate(app_data$feature_values)) %>%
+      arrange(feature_value) %>%
+      ggplot() +
+      aes(x=x, y=y, colour=feature_value) +
+      labs(title=sprintf(fmt='%s in cells', isolate(app_data$feature_name))) +
       geom_point(size=input_point_size()) +
       colour_gradient +
       guides(color=guide_colourbar(label.position='bottom')) +
@@ -264,23 +258,30 @@ server <- function(input, output, session) {
             panel.background=element_rect(fill=panel_background_rgb),
             text=element_text(size=14))}, bg='transparent')
 
-  ### 3D plotly
+  # ### 3D plotly
   output$feature_scatterplot_3d <- renderPlotly({
+    req(app_data$reduction_3d)
+    req(app_data$metadata)
+    req(input_feature_value_limits$min)
+    req(isolate(app_data$feature_values))
+    message('/// making 3d feature scatterplot')
+
     if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
-
+ 
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
     palette_direction <- selected_palette$direction
-
+ 
     if(palette_package=='brewer') {
       colour_gradient <- brewer_pal(palette=picked_palette, direction=palette_direction)(8)
     } else if(palette_package=='viridis') {
       colour_gradient <- viridis_pal(option=picked_palette, direction=1,)
     }
-
-    data_to_plot() %>%
+ 
+    data.frame(app_data$reduction_3d, feature_value=isolate(app_data$feature_values), app_data$metadata) %>%
       mutate(feature_value=squish(x=feature_value, range=input_feature_value_limits$limits)) %>%
+      arrange(feature_value) %>%
       plot_ly() %>%
       layout(paper_bgcolor=panel_background_rgb,
              scene=list(xaxis=list(visible=FALSE),
@@ -294,7 +295,7 @@ server <- function(input, output, session) {
              displaylogo=FALSE,
              modeBarButtonsToRemove=c('zoom2d', 'resetCameraLastSave3d'),
              displayModeBar=TRUE) %>%
-      add_markers(x=~x.3d, y=~y.3d, z=~z.3d,
+      add_markers(x=~x, y=~y, z=~z,
                   color=~feature_value,
                   text=~seurat_clusters,
                   colors=colour_gradient,
@@ -304,17 +305,21 @@ server <- function(input, output, session) {
                   hoverinfo='text') %>%
       # colorbar(title=input_feature(),
       #          yanchor='center', y=0.5)
-      hide_colorbar()
-    })
-  
+      hide_colorbar()})
+ 
   ## make cluster identity scatterplots
   ### 2D ggplot
   output$cluster_scatterplot <- renderPlot({
-    data_to_plot <- data_to_plot()
-    n_clusters <- levels(data_to_plot$seurat_clusters) %>% length()
-    
-    ggplot(data=data_to_plot) +
-      aes(x=x.2d, y=y.2d, colour=seurat_clusters) +
+    req(app_data$reduction_2d)
+    req(app_data$metadata)
+    message('/// making 2d cluster scatterplot')
+
+    n_clusters <- levels(app_data$metadata$seurat_clusters) %>% length()
+
+    data.frame(app_data$reduction_2d, app_data$metadata) %>%
+      arrange(seurat_clusters) %>%
+      ggplot() +
+      aes(x=x, y=y, colour=seurat_clusters) +
       labs(title='Cell clusters') +
       geom_point(size=input_point_size()) +
       scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}) +
@@ -323,12 +328,16 @@ server <- function(input, output, session) {
             panel.border=element_rect(fill=NA),
             panel.background=element_rect(fill=panel_background_rgb),
             text=element_text(size=14))}, bg='transparent')
-  
+
   ### 3D plotly
   output$cluster_scatterplot_3d <- renderPlotly({
-    data_to_plot <- data_to_plot()
+    req(app_data$reduction_3d)
+    req(app_data$metadata)
+    message('/// making 3d cluster scatterplot')
 
-    plot_ly(data=data_to_plot) %>%
+    data.frame(app_data$reduction_3d, app_data$metadata) %>%
+      arrange(seurat_clusters) %>%
+      plot_ly() %>%
       layout(paper_bgcolor=panel_background_rgb,
              showlegend=FALSE,
              scene=list(xaxis=list(visible=FALSE),
@@ -345,16 +354,21 @@ server <- function(input, output, session) {
              displaylogo=FALSE,
              modeBarButtonsToRemove=c('zoom2d', 'resetCameraLastSave3d'),
              displayModeBar=TRUE) %>%
-      add_markers(x=~x.3d, y=~y.3d, z=~z.3d,
+      add_markers(x=~x, y=~y, z=~z,
                   color=~seurat_clusters, colors='Set2',
                   text=~seurat_clusters,
                   marker=list(symbol='circle-dot',
                               size=input_point_size()*2,
                               line=list(width=0)),
                   hoverinfo='text')})
-  
+
   ## make cluster/feature signal barplot
   output$cluster_feature_barplot <- renderPlot({
+    req(app_data$metadata)
+    req(app_data$feature_values)
+    req(app_data$feature_name)
+    message('/// making feature barplot')
+
     # palette_package <- selected_palette$package
     # picked_palette <- selected_palette$name
     # palette_direction <- selected_palette$direction
@@ -363,8 +377,7 @@ server <- function(input, output, session) {
     picked_palette <- 'Blues'
     palette_direction <- 1
 
-    data_to_plot <- data_to_plot()
-    n_clusters <- levels(data_to_plot$seurat_clusters) %>% length()
+    n_clusters <- levels(app_data$metadata$seurat_clusters) %>% length()
     
     if(palette_package=='brewer') {
       fill_gradient <- scale_fill_distiller(palette=picked_palette, direction=palette_direction)
@@ -374,8 +387,8 @@ server <- function(input, output, session) {
       fill_gradient <- scale_fill_gradient()
     }
 
-    data_to_plot %>%
-      mutate(feature_name=input_feature()) %>%
+    cbind(app_data$metadata, feature_value=app_data$feature_values) %>%
+      mutate(feature_name=app_data$feature_name) %>%
       group_by(seurat_clusters, feature_name) %>%
       mutate(cells_in_cluster=n()) %>%
       filter(feature_value>0) %>% # only use cells with non-zero expression
@@ -387,11 +400,11 @@ server <- function(input, output, session) {
                 to_value=quantile(feature_value, 0.75)) %>%
       ggplot() +
       aes(x=seurat_clusters, fill=mean_value, colour=seurat_clusters) +
-      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', input_feature()), fill=sprintf(fmt='Mean signal', input_feature()), size='Cells in cluster', colour='Cell type', title=sprintf(fmt='%s in clusters', input_feature())) +
+      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', app_data$feature_name), fill=sprintf(fmt='Mean signal', app_data$feature_name), size='Cells in cluster', colour='Cell type', title=sprintf(fmt='%s in clusters', app_data$feature_name)) +
       geom_linerange(mapping=aes(ymin=from_value, ymax=to_value), size=2) +
       geom_point(mapping=aes(y=median_value, size=expressing_cells/cells_in_cluster*100), shape=21, colour='darkgrey', stroke=1) +
       scale_size_continuous(labels=function(l) str_c(l, '%'), range=c(2,8)) +
-      scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}, breaks={levels(data_to_plot$seurat_clusters) %>% rev()}) +
+      scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}, breaks={levels(app_data$metadata$seurat_clusters) %>% rev()}) +
       fill_gradient +
       coord_flip() +
       guides(colour=guide_legend(order=1), 
