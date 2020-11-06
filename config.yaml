@@ -3,9 +3,9 @@ initial_feature: a feature in the matrix to initialise with
 datasets:
   dropdown group 1:
     dataset 1:
-      rds_file: /path/to/a/trimmed/dataset.rds
+      file: /path/to/a/trimmed/dataset.h5
     dataset 2:
-      rds_file: relative/path/to/a/trimmed/dataset.rds
+      file: relative/path/to/a/trimmed/dataset.h5
   dropdown group 2:
     dataset 1:
-      rds_file: /path/to/another/trimmed/dataset.rds
+      file: /path/to/another/trimmed/dataset.h5
