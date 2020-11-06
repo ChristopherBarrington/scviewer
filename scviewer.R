@@ -2,7 +2,6 @@
 
 library(shiny)
 library(dqshiny)
-library(htmlwidgets)
 library(shinydashboard)
 library(dashboardthemes)
 library(ggplot2)
