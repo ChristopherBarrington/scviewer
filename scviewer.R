@@ -24,7 +24,7 @@ options(warn=-1,
         scviewer.verbose=FALSE)
 
 # load the project description configuration file
-app_config <- yaml::read_yaml(file='test_config.yaml')
+app_config <- yaml::read_yaml(file='config.yaml')
 
 # define the UI
 ## header
