@@ -10,6 +10,8 @@ Assumptions:
 
 * features in `scviewer` are the normalised RNA and gene module scores.
 * `seurat@reductions` must contain a `pca` entry and describe at least 3 components. Both '2D' and '3D' PCA coordinates are taken from the `pca` slot.
+* `cluster_id` and `group_id` are correctly-ordered `factor`s
+
 
 ```r
 library(Matrix)
@@ -32,7 +34,7 @@ cbind({seurat@assays$RNA@data %>% Matrix::t()},
 seurat@meta.data %>%
   as.data.frame() %>%
   rownames_to_column('cell_id') %>%
-  select(cell_id, cell_type=seurat_clusters) -> metadata
+  select(cell_id, group_id=seurat_clusters, cluster_id=seurat_clusters) -> metadata
 ```
 
 # Data format
@@ -41,7 +43,9 @@ The `h5` file must contain:
 
 * `features/values`: contains the normalised count data, added feature-by-feature
 * `reductions`: contains the coordinates for each cell in each reduction method or paramter set
-* `metadata`: a `data.frame` with _at least_ `cell_id` and `cell_type` variables
+* `metadata`: a `data.frame` with _at least_ `cell_id`, `group_id` and `cluster_id` variables
+  * `group_id` will be used to plot distibution of selected feature values
+  * `cluster_id` can be used to highlight clusters on the reduced dimension plot
 
 **Feature names are converted to lower case here to avoid capitalisation problems with user input.**
 
