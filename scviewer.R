@@ -1,3 +1,11 @@
+
+#                                       _                                    
+#      o O O   ___     __     __ __    (_)     ___   __ __ __  ___      _ _  
+#     o       (_-<    / _|    \ V /    | |    / -_)  \ V  V / / -_)    | '_| 
+#    TS__[O]  /__/_   \__|_   _\_/_   _|_|_   \___|   \_/\_/  \___|   _|_|_  
+#   {======|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""| 
+#  ./o--000'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-' 
+
 .libPaths(c(.libPaths(), 'lib'))
 
 library(rhdf5)
@@ -5,26 +13,26 @@ library(shiny)
 library(dqshiny)
 library(shinydashboard)
 library(dashboardthemes)
-library(ggplot2)
+# library(ggplot2)
 library(plotly)
 library(RColorBrewer)
 library(scales)
-library(esquisse)
+library(esquisse) # for palettePicker()
 library(gtools)
 library(shinyWidgets)
 library(waiter)
+
 library(magrittr)
 library(tidyverse)
 
 message('/// ----- ----- ----- ----- -----')
 str_c('/// started at:', date(), sep=' ') %>% message()
-
 options(warn=-1,
         dplyr.summarise.inform=FALSE,
         scviewer.verbose=FALSE)
 
 # load the project description configuration file
-app_config <- yaml::read_yaml(file='config.yaml')
+app_config <- yaml::read_yaml(file='test_config.yaml')
 
 # define the UI
 ## header
@@ -69,7 +77,7 @@ dashboardSidebar(disable=FALSE,
                                                  `brewer:BrBG:r`=brewer_pal(palette='BrBG', direction=-1)(8),
                                                  `brewer:Spectral:r`=brewer_pal(palette='Spectral', direction=-1)(8))) %>%
                      palettePicker(inputId='predefined_palette', label='Colour palette', 
-                                   selected='brewer:YlGnBu', textColor=rgb(red=0, green=0, blue=0, alpha=0),
+                                   selected='brewer:YlGnBu:f', textColor=rgb(red=0, green=0, blue=0, alpha=0),
                                    pickerOpts=list(`live-search`=FALSE, size=10))},
                  selectInput(inputId='reduction_method', label='Dimension reduction method', choices=list(PCA='pca', UMAP='umap', tSNE='tsne'), selected='umap'),
                  sliderInput(inputId='point_size', label='Size of cells', min=0.3, max=1.5, step=0.05, value=1.0)) -> ui_sidebar
@@ -81,25 +89,24 @@ dashboardBody(shinyDashboardThemes(theme='grey_light'),
                        tags$style(type='text/css', '#cluster_scatterplot_3d {width: 100% !important; height: calc(50vh - 40px) !important;}'),
                        tags$style(type='text/css', '#feature_scatterplot {width: 100% !important; height: calc(50vh - 40px) !important;}'),
                        tags$style(type='text/css', '#feature_scatterplot_3d {width: 100% !important; height: calc(50vh - 40px) !important;}'),
-                       tags$style(type='text/css', '#cluster_feature_barplot {width: 100% !important; height: calc(100vh - 80px) !important;}'),
+                       tags$style(type='text/css', '#grouped_feature_values_barplot {width: 100% !important; height: calc(100vh - 80px) !important;}'),
                        fillRow(column(width=12,
                                       plotOutput('cluster_scatterplot', height='100%'),
                                       plotlyOutput('cluster_scatterplot_3d', height='100%')),
                                column(width=12,
                                       plotOutput('feature_scatterplot', height='100%'),
                                       plotlyOutput('feature_scatterplot_3d', height='100%')),
-                               plotOutput('cluster_feature_barplot', height='100%')))) -> ui_body
+                               plotOutput('grouped_feature_values_barplot', height='100%')))) -> ui_body
 
 ## bring elements together into the app ui
 dashboardPage(header=ui_header, sidebar=ui_sidebar, body=ui_body, title=NULL) -> ui
 
 # define the server
 server <- function(input, output, session) {
-  app_data <- reactiveValues()
-  input_feature_value_limits <- reactiveValues()
 
   ## get UI inputs
   ### load the dataset file
+  app_data <- reactiveValues()
   observe(x={
     req(input$filename)
     message('/// initialising from: ', input$filename)
@@ -110,11 +117,12 @@ server <- function(input, output, session) {
     app_data$reduction_2d <- NULL
     app_data$reduction_3d <- NULL
 
+    h5read(file=input$filename, name='metadata_group_id_names') -> group_id_levels
+    h5read(file=input$filename, name='metadata_cluster_id_names') -> cluster_id_levels
+
     h5read(file=input$filename, name='metadata') %>%
-      mutate(seurat_clusters=sprintf(fmt='Cluster %s: a cell type', seurat_clusters) %>%
-                               factor() %>%
-                               fct_relevel(mixedsort) %>%
-                               fct_relevel(rev)) -> app_data$metadata
+      mutate(cluster_id=factor(cluster_id_levels[cluster_id], levels=cluster_id_levels),
+             group_id=factor(group_id_levels[group_id], levels=group_id_levels)) -> app_data$metadata
     app_data$h5_file <- input$filename
 
     all_features <- h5read(file=app_data$h5_file, name='features/names')
@@ -122,7 +130,7 @@ server <- function(input, output, session) {
                               options=all_features,
                               value=app_config$initial_feature)})
 
-  observe(x={if(getOption('scviewer.verbose', FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
+  observe(x={if(getOption('scviewer.verbose', default=FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
 
   ### collect the user-specified feature name
   observe(x={
@@ -148,6 +156,7 @@ server <- function(input, output, session) {
       app_data$feature_values <- feature_values})
   
   ### collect the colour scale limits
+  input_feature_value_limits <- reactiveValues()
   observeEvent(eventExpr=input$feature_value_limits, ignoreInit=TRUE, handlerExpr={
     req(input$feature_value_limits)
     req(app_data$feature_name)
@@ -170,7 +179,7 @@ server <- function(input, output, session) {
     app_data$reduction_2d <- h5read(file=h5_file, name=h5_name_2d)
     app_data$reduction_3d <- h5read(file=h5_file, name=h5_name_3d)})
 
-  ## collect the point size and reduce reactivity
+  ### collect the point size and reduce reactivity
   input_point_size <- reactive(x={
     sprintf('/// set point size [%s]', input$point_size) %>% message()
     input$point_size}) %>%
@@ -189,8 +198,10 @@ server <- function(input, output, session) {
     selected_palette$package <- sp[[1]]
     selected_palette$name <- sp[[2]]
     selected_palette$type <- sp[[3]]
-    selected_palette$direction <- sp[[3]] %>% switch(f=1, r=-1)
-  })
+    selected_palette$direction <- sp[[3]] %>% switch(f=1, r=-1)})
+
+  ### collect the variable by which cell clusters are coloured
+  cluster_variable <- function(...) 'cluster_id'
 
   ## on startup, show reminder to load a dataset
   sendSweetAlert(
@@ -292,11 +303,11 @@ server <- function(input, output, session) {
                           bgcolor=plotly_config$modebar$bgcolor)) %>%
       config(scrollZoom=FALSE,
              displaylogo=FALSE,
-             modeBarButtonsToRemove=c('zoom2d', 'resetCameraLastSave3d'),
+             modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
              displayModeBar=TRUE) %>%
       add_markers(x=~x, y=~y, z=~z,
                   color=~feature_value,
-                  text=~seurat_clusters,
+                  text=~cluster_id,
                   colors=colour_gradient,
                   marker=list(symbol='circle-dot',
                               size=input_point_size()*2,
@@ -313,12 +324,14 @@ server <- function(input, output, session) {
     req(app_data$metadata)
     message('/// making 2d cluster scatterplot')
 
-    n_clusters <- levels(app_data$metadata$seurat_clusters) %>% length()
+    cell_colour_variable <- cluster_variable()
+    n_clusters <- app_data$metadata %>% pluck(cell_colour_variable) %>% levels() %>% length()
 
     data.frame(app_data$reduction_2d, app_data$metadata) %>%
-      arrange(seurat_clusters) %>%
+      rename(.id=cell_colour_variable) %>%
+      arrange(.id) %>%
       ggplot() +
-      aes(x=x, y=y, colour=seurat_clusters) +
+      aes(x=x, y=y, colour=.id) +
       labs(title='Cell clusters') +
       geom_point(size=input_point_size()) +
       scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}) +
@@ -334,8 +347,11 @@ server <- function(input, output, session) {
     req(app_data$metadata)
     message('/// making 3d cluster scatterplot')
 
+    cell_colour_variable <- cluster_variable()
+
     data.frame(app_data$reduction_3d, app_data$metadata) %>%
-      arrange(seurat_clusters) %>%
+      rename(.id=cell_colour_variable) %>%
+      arrange(.id) %>%
       plot_ly() %>%
       layout(paper_bgcolor=panel_background_rgb,
              showlegend=FALSE,
@@ -351,32 +367,26 @@ server <- function(input, output, session) {
                          x=0.5)) %>%
       config(scrollZoom=FALSE,
              displaylogo=FALSE,
-             modeBarButtonsToRemove=c('zoom2d', 'resetCameraLastSave3d'),
+             modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
              displayModeBar=TRUE) %>%
       add_markers(x=~x, y=~y, z=~z,
-                  color=~seurat_clusters, colors='Set2',
-                  text=~seurat_clusters,
+                  color=~.id, colors='Set2',
+                  text=~.id,
                   marker=list(symbol='circle-dot',
                               size=input_point_size()*2,
                               line=list(width=0)),
                   hoverinfo='text')})
 
   ## make cluster/feature signal barplot
-  output$cluster_feature_barplot <- renderPlot({
+  output$grouped_feature_values_barplot <- renderPlot({
     req(app_data$metadata)
     req(app_data$feature_values)
     req(app_data$feature_name)
     message('/// making feature barplot')
 
-    # palette_package <- selected_palette$package
-    # picked_palette <- selected_palette$name
-    # palette_direction <- selected_palette$direction
-
     palette_package <- 'brewer'
-    picked_palette <- 'Blues'
+    picked_palette <- 'YlOrRd'
     palette_direction <- 1
-
-    n_clusters <- levels(app_data$metadata$seurat_clusters) %>% length()
     
     if(palette_package=='brewer') {
       fill_gradient <- scale_fill_distiller(palette=picked_palette, direction=palette_direction)
@@ -387,26 +397,32 @@ server <- function(input, output, session) {
     }
 
     cbind(app_data$metadata, feature_value=app_data$feature_values) %>%
-      mutate(feature_name=app_data$feature_name) %>%
-      group_by(seurat_clusters, feature_name) %>%
-      mutate(cells_in_cluster=n()) %>%
+      add_column(feature_name=app_data$feature_name) %>%
+      group_by(group_id, feature_name) %>%
+      mutate(cells_in_group=n()) %>%
       filter(feature_value>0) %>% # only use cells with non-zero expression
-      group_by(cells_in_cluster, add=TRUE) %>%
+      group_by(cells_in_group, add=TRUE) %>%
       summarise(expressing_cells=n(),
                 mean_value=mean(feature_value),
                 median_value=median(feature_value),
                 from_value=quantile(feature_value, 0.25),
                 to_value=quantile(feature_value, 0.75)) %>%
+      filter(group_id!='NULL' & !str_detect(group_id, 'Null')) %>%
+      mutate(group_id=fct_relevel(group_id, rev)) %>%
       ggplot() +
-      aes(x=seurat_clusters, fill=mean_value, colour=seurat_clusters) +
-      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', app_data$feature_name), fill=sprintf(fmt='Mean signal', app_data$feature_name), size='Cells in cluster', colour='Cell type', title=sprintf(fmt='%s in clusters', app_data$feature_name)) +
-      geom_linerange(mapping=aes(ymin=from_value, ymax=to_value), size=2) +
-      geom_point(mapping=aes(y=median_value, size=expressing_cells/cells_in_cluster*100), shape=21, colour='darkgrey', stroke=1) +
+      aes(x=group_id, fill=mean_value, colour=group_id) +
+      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', app_data$feature_name),
+           fill=sprintf(fmt='Mean signal', app_data$feature_name),
+           size='Reported by\ncells in group', colour='Cell type',
+           title=sprintf(fmt='%s in cell groups', app_data$feature_name)) +
+      geom_linerange(mapping=aes(ymin=from_value, ymax=to_value), size=1.4, colour='grey30') +
+      geom_point(mapping=aes(y=median_value, size=expressing_cells/cells_in_group*100), shape=21, colour='grey0', stroke=1) +
+      scale_x_discrete() +
+      scale_y_continuous() +
       scale_size_continuous(labels=function(l) str_c(l, '%'), range=c(2,8)) +
-      scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}, breaks={levels(app_data$metadata$seurat_clusters) %>% rev()}) +
       fill_gradient +
       coord_flip() +
-      guides(colour=guide_legend(order=1), 
+      guides(colour='none', 
              fill=guide_colourbar(order=2), 
              size=guide_legend(order=3)) +
       theme_bw() +
