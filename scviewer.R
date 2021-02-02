@@ -30,7 +30,7 @@ str_c('/// started at:', date(), sep=' ') %>% message()
 options(warn=-1,
         dplyr.summarise.inform=FALSE,
         scviewer.verbose=FALSE)
-
+shinyOptions(cache = cachem::cache_disk("myapp-cache"))
 # load the project description configuration file
 app_config <- yaml::read_yaml(file='test_config.yaml')
 
@@ -80,7 +80,8 @@ dashboardSidebar(disable=FALSE,
                                    selected='brewer:YlGnBu:f', textColor=rgb(red=0, green=0, blue=0, alpha=0),
                                    pickerOpts=list(`live-search`=FALSE, size=10))},
                  selectInput(inputId='reduction_method', label='Dimension reduction method', choices=list(PCA='pca', UMAP='umap', tSNE='tsne'), selected='umap'),
-                 sliderInput(inputId='point_size', label='Size of cells', min=0.3, max=1.5, step=0.05, value=1.0)) -> ui_sidebar
+                 sliderInput(inputId='point_size', label='Size of cells', min=0.3, max=1.5, step=0.05, value=1.0),
+                 prettyCheckboxGroup(inputId='cell_filter', label='Cell filter', choices=NULL, selected=NULL)) -> ui_sidebar
 
 ## main body, plots
 dashboardBody(shinyDashboardThemes(theme='grey_light'),
@@ -111,35 +112,46 @@ server <- function(input, output, session) {
     req(input$filename)
     message('/// initialising from: ', input$filename)
 
-    app_data$feature_name <- NULL
-    app_data$feature_values <- NULL
+    selected_feature$name <- NULL
+    selected_feature$values <- NULL
 
     app_data$reduction_2d <- NULL
     app_data$reduction_3d <- NULL
 
     h5read(file=input$filename, name='metadata_group_id_names') -> group_id_levels
     h5read(file=input$filename, name='metadata_cluster_id_names') -> cluster_id_levels
+    h5read(file=input$filename, name='metadata_cell_filter_names') -> cell_filter_levels
 
     h5read(file=input$filename, name='metadata') %>%
       mutate(cluster_id=factor(cluster_id_levels[cluster_id], levels=cluster_id_levels),
-             group_id=factor(group_id_levels[group_id], levels=group_id_levels)) -> app_data$metadata
+             group_id=factor(group_id_levels[group_id], levels=group_id_levels),
+             cell_filter=factor(cell_filter_levels[cell_filter], levels=cell_filter_levels)) -> app_data$metadata
     app_data$h5_file <- input$filename
 
     all_features <- h5read(file=app_data$h5_file, name='features/names')
     update_autocomplete_input(session=session, id='feature',
                               options=all_features,
-                              value=app_config$initial_feature)})
+                              value=app_config$initial_feature)
+
+    app_data$metadata %>%
+      pluck('cell_filter') %>%
+      levels() %>%
+      updatePrettyCheckboxGroup(session=session, inputId='cell_filter',
+                                choices=., selected=.,
+                                prettyOptions=list(icon=icon('check-square-o'), status='primary',
+                                                   outline=TRUE, animation='jelly', bigger=TRUE, inline=TRUE))})
 
   observe(x={if(getOption('scviewer.verbose', default=FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
 
   ### collect the user-specified feature name
+  selected_feature <- reactiveValues()
   observe(x={
     req(app_data$h5_file)
     input_feature <- if_else(input$feature=='', app_config$initial_feature, input$feature)
     sprintf('/// reading feature [%s] from: %s', input_feature, app_data$h5_file) %>% message()
 
     h5_file <- app_data$h5_file
-    h5_name <- input_feature %>% str_to_lower() %>% sprintf(fmt='features/values/%s') #%T>% print()
+    h5_name <- input_feature %>% str_to_lower() %>% sprintf(fmt='features/values/%s')
     feature_values <- h5read(file=h5_file, name=h5_name)
      
       slider_min <- min(feature_values) %>% subtract(0.05) %>% round(digits=1)
@@ -152,15 +164,15 @@ server <- function(input, output, session) {
                         min=slider_min, max=slider_max,
                         value=c(slider_min, slider_max))
 
-      app_data$feature_name <- input_feature
-      app_data$feature_values <- feature_values})
+      selected_feature$name <- input_feature
+      selected_feature$values <- feature_values})
   
   ### collect the colour scale limits
   input_feature_value_limits <- reactiveValues()
   observeEvent(eventExpr=input$feature_value_limits, ignoreInit=TRUE, handlerExpr={
     req(input$feature_value_limits)
-    req(app_data$feature_name)
-    sprintf('/// setting value limits for %s', isolate(app_data$feature_name)) %>% message()
+    req(selected_feature$name)
+    sprintf('/// setting value limits for %s', isolate(selected_feature$name)) %>% message()
 
     input_feature_value_limits$min <- input$feature_value_limits[1]
     input_feature_value_limits$max <- input$feature_value_limits[2]
@@ -203,6 +215,12 @@ server <- function(input, output, session) {
   ### collect the variable by which cell clusters are coloured
   cluster_variable <- function(...) 'cluster_id'
 
+  ### collect the cell filtering values
+  input_cell_filter <- reactive(x={
+    sprintf('/// set cell_filter to [%s]', str_c(input$cell_filter, collapse=', ')) %>% message()
+    input$cell_filter}) %>%
+    debounce(500)
+
   ## on startup, show reminder to load a dataset
   sendSweetAlert(
     session=session,
@@ -225,12 +243,15 @@ server <- function(input, output, session) {
   output$feature_scatterplot <- renderPlot({
     req(app_data$reduction_2d)
     req(input_feature_value_limits$min)
-    req(isolate(app_data$feature_values))
-    req(isolate(app_data$feature_name))
-    message('/// making 2d feature scatterplot')
+    req(input_feature_value_limits$max)
+    req(isolate(selected_feature$values))
+    req(isolate(selected_feature$name))
+    req(isolate(app_data$metadata))
 
     if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
+
+    message('/// making 2d feature scatterplot')
 
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
@@ -249,31 +270,34 @@ server <- function(input, output, session) {
     } else {
       colour_gradient <- scale_colour_gradient()
     }
-   
-    data.frame(app_data$reduction_2d, feature_value=isolate(app_data$feature_values)) %>%
+
+    data.frame(app_data$reduction_2d, feature_value=isolate(selected_feature$values), isolate(app_data$metadata)) %>%
       arrange(feature_value) %>%
-      ggplot() +
-      aes(x=x, y=y, colour=feature_value) +
-      labs(title=sprintf(fmt='%s in cells', isolate(app_data$feature_name))) +
-      geom_point(size=input_point_size()) +
-      colour_gradient +
-      guides(color=guide_colourbar(label.position='bottom')) +
-      theme_void() +
-      theme(legend.box.margin=margin(r=10, b=10, t=0, l=0),
-            legend.position=c(1,0),
-            legend.justification=c(1,0),
-            legend.direction='horizontal',
-            legend.title=element_blank(),
-            panel.border=element_rect(fill=NA),
-            panel.background=element_rect(fill=panel_background_rgb),
-            text=element_text(size=14))}, bg='transparent')
+      filter(cell_filter %in% input_cell_filter()) %>%
+      {ggplot(data=.) +
+       aes(x=x, y=y, colour=feature_value) +
+       labs(title=sprintf(fmt='%s in cells', isolate(selected_feature$name))) +
+       geom_point(size=input_point_size()) +
+       annotate(geom='text', x=-Inf, y=-Inf, label={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}, hjust=-0.1, vjust=-1) +
+       colour_gradient +
+       guides(color=guide_colourbar(label.position='bottom')) +
+       theme_void() +
+       theme(legend.box.margin=margin(r=10, b=10, t=0, l=0),
+             legend.position=c(1,0),
+             legend.justification=c(1,0),
+             legend.direction='horizontal',
+             legend.title=element_blank(),
+             panel.border=element_rect(fill=NA),
+             panel.background=element_rect(fill=panel_background_rgb),
+             text=element_text(size=14))}}, bg='transparent')
 
   # ### 3D plotly
   output$feature_scatterplot_3d <- renderPlotly({
     req(app_data$reduction_3d)
     req(app_data$metadata)
     req(input_feature_value_limits$min)
-    req(isolate(app_data$feature_values))
+    req(isolate(selected_feature$values))
+    req(isolate(selected_feature$name))
     message('/// making 3d feature scatterplot')
 
     if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
@@ -289,9 +313,11 @@ server <- function(input, output, session) {
       colour_gradient <- viridis_pal(option=picked_palette, direction=1,)
     }
  
-    data.frame(app_data$reduction_3d, feature_value=isolate(app_data$feature_values), app_data$metadata) %>%
+    data.frame(app_data$reduction_3d, feature_value=isolate(selected_feature$values), app_data$metadata) %>%
+      mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, selected_feature$name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=input_feature_value_limits$limits)) %>%
       arrange(feature_value) %>%
+      filter(cell_filter %in% input_cell_filter()) %>%
       plot_ly() %>%
       layout(paper_bgcolor=panel_background_rgb,
              scene=list(xaxis=list(visible=FALSE),
@@ -307,7 +333,7 @@ server <- function(input, output, session) {
              displayModeBar=TRUE) %>%
       add_markers(x=~x, y=~y, z=~z,
                   color=~feature_value,
-                  text=~cluster_id,
+                  text=~text,
                   colors=colour_gradient,
                   marker=list(symbol='circle-dot',
                               size=input_point_size()*2,
@@ -330,16 +356,18 @@ server <- function(input, output, session) {
     data.frame(app_data$reduction_2d, app_data$metadata) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(.id) %>%
-      ggplot() +
-      aes(x=x, y=y, colour=.id) +
-      labs(title='Cell clusters') +
-      geom_point(size=input_point_size()) +
-      scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}) +
-      theme_void() +
-      theme(legend.position='none',
-            panel.border=element_rect(fill=NA),
-            panel.background=element_rect(fill=panel_background_rgb),
-            text=element_text(size=14))}, bg='transparent')
+      # filter(cell_filter %in% input_cell_filter()) %>%
+      {ggplot(data=.) +
+       aes(x=x, y=y, colour=.id) +
+       labs(title='Cell clusters') +
+       geom_point(size=input_point_size()) +
+       annotate(geom='text', x=-Inf, y=-Inf, label={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}, hjust=-0.1, vjust=-1) +
+       scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}) +
+       theme_void() +
+       theme(legend.position='none',
+             panel.border=element_rect(fill=NA),
+             panel.background=element_rect(fill=panel_background_rgb),
+             text=element_text(size=14))}}, bg='transparent')
 
   ### 3D plotly
   output$cluster_scatterplot_3d <- renderPlotly({
@@ -350,8 +378,10 @@ server <- function(input, output, session) {
     cell_colour_variable <- cluster_variable()
 
     data.frame(app_data$reduction_3d, app_data$metadata) %>%
+      mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s', cluster_id, group_id)) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(.id) %>%
+      # filter(cell_filter %in% input_cell_filter()) %>%
       plot_ly() %>%
       layout(paper_bgcolor=panel_background_rgb,
              showlegend=FALSE,
@@ -371,7 +401,7 @@ server <- function(input, output, session) {
              displayModeBar=TRUE) %>%
       add_markers(x=~x, y=~y, z=~z,
                   color=~.id, colors='Set2',
-                  text=~.id,
+                  text=~text,
                   marker=list(symbol='circle-dot',
                               size=input_point_size()*2,
                               line=list(width=0)),
@@ -380,8 +410,8 @@ server <- function(input, output, session) {
   ## make cluster/feature signal barplot
   output$grouped_feature_values_barplot <- renderPlot({
     req(app_data$metadata)
-    req(app_data$feature_values)
-    req(app_data$feature_name)
+    req(selected_feature$values)
+    req(selected_feature$name)
     message('/// making feature barplot')
 
     palette_package <- 'brewer'
@@ -396,8 +426,9 @@ server <- function(input, output, session) {
       fill_gradient <- scale_fill_gradient()
     }
 
-    cbind(app_data$metadata, feature_value=app_data$feature_values) %>%
-      add_column(feature_name=app_data$feature_name) %>%
+    cbind(app_data$metadata, feature_value=selected_feature$values) %>%
+      # filter(cell_filter %in% input_cell_filter()) %>%
+      add_column(feature_name=selected_feature$name) %>%
       group_by(group_id, feature_name) %>%
       mutate(cells_in_group=n()) %>%
       filter(feature_value>0) %>% # only use cells with non-zero expression
@@ -411,10 +442,10 @@ server <- function(input, output, session) {
       mutate(group_id=fct_relevel(group_id, rev)) %>%
       ggplot() +
       aes(x=group_id, fill=mean_value, colour=group_id) +
-      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', app_data$feature_name),
-           fill=sprintf(fmt='Mean signal', app_data$feature_name),
+      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', selected_feature$name),
+           fill=sprintf(fmt='Mean signal', selected_feature$name),
            size='Reported by\ncells in group', colour='Cell type',
-           title=sprintf(fmt='%s in cell groups', app_data$feature_name)) +
+           title=sprintf(fmt='%s in cell groups', selected_feature$name)) +
       geom_linerange(mapping=aes(ymin=from_value, ymax=to_value), size=1.4, colour='grey30') +
       geom_point(mapping=aes(y=median_value, size=expressing_cells/cells_in_group*100), shape=21, colour='grey0', stroke=1) +
       scale_x_discrete() +
