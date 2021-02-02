@@ -308,9 +308,9 @@ server <- function(input, output, session) {
     palette_direction <- selected_palette$direction
  
     if(palette_package=='brewer') {
-      colour_gradient <- brewer_pal(palette=picked_palette, direction=palette_direction)(8)
+      colour_gradient <- brewer_pal(palette=picked_palette, direction=palette_direction)(32)
     } else if(palette_package=='viridis') {
-      colour_gradient <- viridis_pal(option=picked_palette, direction=1,)
+      colour_gradient <- viridis_pal(option=picked_palette, direction=1)(32)
     }
  
     data.frame(app_data$reduction_3d, feature_value=isolate(selected_feature$values), app_data$metadata) %>%
@@ -320,29 +320,31 @@ server <- function(input, output, session) {
       filter(cell_filter %in% input_cell_filter()) %>%
       plot_ly() %>%
       layout(paper_bgcolor=panel_background_rgb,
+             showlegend=FALSE,
              scene=list(xaxis=list(visible=FALSE),
                         yaxis=list(visible=FALSE),
                         zaxis=list(visible=FALSE)),
              modebar=list(orientation='v',
                           activecolor=plotly_config$modebar$activecolor,
                           color=plotly_config$modebar$color,
-                          bgcolor=plotly_config$modebar$bgcolor)) %>%
+                          bgcolor=plotly_config$modebar$bgcolor),
+             legend=list(orientation='h',
+                         xanchor='center',
+                         x=0.5),
+             hoverlabel=list(bgcolor='white')) %>%
       config(scrollZoom=FALSE,
              displaylogo=FALSE,
              modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
              displayModeBar=TRUE) %>%
       add_markers(x=~x, y=~y, z=~z,
-                  color=~feature_value,
+                  color=~feature_value, colors=colour_gradient,
                   text=~text,
-                  colors=colour_gradient,
                   marker=list(symbol='circle-dot',
                               size=input_point_size()*2,
                               line=list(width=0)),
                   hoverinfo='text') %>%
-      # colorbar(title=input_feature(),
-      #          yanchor='center', y=0.5)
       hide_colorbar()})
- 
+
   ## make cluster identity scatterplots
   ### 2D ggplot
   output$cluster_scatterplot <- renderPlot({
