@@ -13,15 +13,13 @@
 library(rhdf5)
 library(shiny)
 library(dqshiny)
+library(shinyWidgets)
 library(shinydashboard)
 library(dashboardthemes)
-# library(ggplot2)
 library(plotly)
 library(RColorBrewer)
-library(scales)
+library(scales) # for comma()
 library(esquisse) # for palettePicker()
-library(gtools)
-library(shinyWidgets)
 library(waiter)
 
 library(magrittr)
@@ -50,7 +48,7 @@ dashboardSidebar(disable=FALSE,
                  tags$style(type='text/css', '.autocomplete-items div:hover {background-color: #DDDDDD;}'),
                  selectizeInput(inputId='filename',
                                 label='Select a dataset',
-                                choices={app_config$datasets %>% map_depth(2, pluck, 'file')},
+                                choices=map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file'),
                                 options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
                  autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
                  sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
