@@ -30,7 +30,7 @@ str_c('/// started at:', date(), sep=' ') %>% message()
 options(warn=-1,
         dplyr.summarise.inform=FALSE,
         scviewer.verbose=FALSE)
-shinyOptions(cache = cachem::cache_disk("myapp-cache"))
+
 # load the project description configuration file
 app_config <- yaml::read_yaml(file='test_config.yaml')
 
@@ -112,21 +112,7 @@ server <- function(input, output, session) {
     req(input$filename)
     message('/// initialising from: ', input$filename)
 
-    selected_feature$name <- NULL
-    selected_feature$values <- NULL
-
-    app_data$reduction_2d <- NULL
-    app_data$reduction_3d <- NULL
-
-    # h5read(file=input$filename, name='metadata_group_id_names') -> group_id_levels
-    # h5read(file=input$filename, name='metadata_cluster_id_names') -> cluster_id_levels
-    # h5read(file=input$filename, name='metadata_cell_filter_names') -> cell_filter_levels
-
-    # h5read(file=input$filename, name='metadata') %>%
-    #   mutate(cluster_id=factor(cluster_id_levels[cluster_id], levels=cluster_id_levels),
-    #          group_id=factor(group_id_levels[group_id], levels=group_id_levels),
-    #          cell_filter=factor(cell_filter_levels[cell_filter], levels=cell_filter_levels)) -> app_data$metadata
-
+    #### load metadata table
     metadata_list <- h5read(file=input$filename, name='metadata')
     for(i in names(metadata_list$factor_levels)) {
       metadata_list$data %<>%
@@ -181,14 +167,31 @@ server <- function(input, output, session) {
   
   ### collect the colour scale limits
   input_feature_value_limits <- reactiveValues()
-  observeEvent(eventExpr=input$feature_value_limits, ignoreInit=TRUE, handlerExpr={
+  reactive(x={
     req(input$feature_value_limits)
     req(selected_feature$name)
-    sprintf('/// setting value limits for %s', isolate(selected_feature$name)) %>% message()
+
+    if(all(input$feature_value_limits==0))
+      return(NULL)
+
+    sprintf('/// setting value limits for %s to [%s]', isolate(selected_feature$name), str_c(input$feature_value_limits, collapse=',')) %>% message()
 
     input_feature_value_limits$min <- input$feature_value_limits[1]
     input_feature_value_limits$max <- input$feature_value_limits[2]
-    input_feature_value_limits$limits <- input$feature_value_limits})
+    input_feature_value_limits$limits <- input$feature_value_limits}) %>%
+    debounce(9000)
+
+  # observeEvent(eventExpr=input$feature_value_limits, ignoreInit=TRUE, handlerExpr={
+  #   req(input$feature_value_limits)
+  #   req(selected_feature$name)
+  #   sprintf('/// setting value limits for %s', isolate(selected_feature$name)) %>% message()
+
+  #   input_feature_value_limits$min <- input$feature_value_limits[1]
+  #   input_feature_value_limits$max <- input$feature_value_limits[2]
+  #   input_feature_value_limits$limits <- input$feature_value_limits})
+
+
+
  
   ### collect the reduction method
   observe(x={
@@ -288,19 +291,18 @@ server <- function(input, output, session) {
       filter(cell_filter %in% input_cell_filter()) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=feature_value) +
-       labs(title=sprintf(fmt='%s in cells', isolate(selected_feature$name))) +
+       labs(title=sprintf(fmt='%s in cells', isolate(selected_feature$name)), subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
        geom_point(size=input_point_size()) +
-       annotate(geom='text', x=-Inf, y=-Inf, label={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}, hjust=-0.1, vjust=-1) +
        colour_gradient +
-       guides(color=guide_colourbar(label.position='bottom')) +
+       guides(color=guide_colourbar(label.position='bottom', frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2)) +
        theme_void() +
        theme(legend.box.margin=margin(r=10, b=10, t=0, l=0),
              legend.position=c(1,0),
              legend.justification=c(1,0),
              legend.direction='horizontal',
              legend.title=element_blank(),
-             panel.border=element_rect(fill=NA),
-             panel.background=element_rect(fill=panel_background_rgb),
+             panel.border=element_rect(fill=NA, colour=NA),
+             panel.background=element_rect(fill=panel_background_rgb, colour=NA),
              text=element_text(size=14))}}, bg='transparent')
 
   # ### 3D plotly
@@ -375,14 +377,13 @@ server <- function(input, output, session) {
       # filter(cell_filter %in% input_cell_filter()) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=.id) +
-       labs(title='Cell clusters') +
+       labs(title='Cell clusters', subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
        geom_point(size=input_point_size()) +
-       annotate(geom='text', x=-Inf, y=-Inf, label={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}, hjust=-0.1, vjust=-1) +
        scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}) +
        theme_void() +
        theme(legend.position='none',
-             panel.border=element_rect(fill=NA),
-             panel.background=element_rect(fill=panel_background_rgb),
+             panel.border=element_rect(fill=NA, colour=NA),
+             panel.background=element_rect(fill=panel_background_rgb, colour=NA),
              text=element_text(size=14))}}, bg='transparent')
 
   ### 3D plotly
@@ -470,13 +471,15 @@ server <- function(input, output, session) {
       fill_gradient +
       coord_flip() +
       guides(colour='none', 
-             fill=guide_colourbar(order=2), 
+             fill=guide_colourbar(order=2, frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2), 
              size=guide_legend(order=3)) +
       theme_bw() +
-      theme(axis.title.y=element_blank(),
+      theme(axis.ticks=element_line(size=1),
+            axis.title.y=element_blank(),
             legend.background=element_blank(),
             legend.key=element_blank(),
             panel.background=element_rect(fill=panel_background_rgb),
+            panel.border=element_rect(size=1, colour='black'),
             panel.grid.major.x=element_blank(),
             plot.background=element_blank(),
             text=element_text(size=14))}, bg='transparent')
