@@ -256,6 +256,9 @@ server <- function(input, output, session) {
 
     message('/// making 2d feature scatterplot')
 
+    metadata <- isolate(app_data$metadata)
+    reduction_2d <- isolate(app_data$reduction_2d)
+    values <- isolate(selected_feature$values)
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
     palette_direction <- selected_palette$direction
@@ -274,7 +277,7 @@ server <- function(input, output, session) {
       colour_gradient <- scale_colour_gradient()
     }
 
-    data.frame(app_data$reduction_2d, feature_value=isolate(selected_feature$values), isolate(app_data$metadata)) %>%
+    data.frame(reduction_2d, feature_value=values, metadata) %>%
       arrange(feature_value) %>%
       filter(cell_filter %in% input_cell_filter()) %>%
       {ggplot(data=.) +
@@ -298,15 +301,18 @@ server <- function(input, output, session) {
     req(app_data$reduction_3d)
     req(input_feature_value_limits$min)
     req(input_feature_value_limits$max)
-    req(isolate(selected_feature$values))
-    req(isolate(selected_feature$name))
-    req(isolate(app_data$metadata))
+    req(isolate(selected_feature$values)
+    req(isolate(selected_feature$name)
+    req(isolate(app_data$metadata)
 
     if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
- 
+
     message('/// making 3d feature scatterplot')
 
+    metadata <- isolate(app_data$metadata)
+    reduction_3d <- isolate(app_data$reduction_3d)
+    values <- isolate(selected_feature$values)
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
     palette_direction <- selected_palette$direction
@@ -317,7 +323,7 @@ server <- function(input, output, session) {
       colour_gradient <- viridis_pal(option=picked_palette, direction=1)(32)
     }
  
-    data.frame(app_data$reduction_3d, feature_value=isolate(selected_feature$values), isolate(app_data$metadata)) %>%
+    data.frame(reduction_3d, feature_value=values, metadata) %>%
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, selected_feature$name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=input_feature_value_limits$limits)) %>%
       arrange(feature_value) %>%
@@ -353,13 +359,16 @@ server <- function(input, output, session) {
   ### 2D ggplot
   output$cluster_scatterplot <- renderPlot({
     req(app_data$reduction_2d)
-    req(app_data$metadata)
+    req(isolate(app_data$metadata))
+
     message('/// making 2d cluster scatterplot')
 
+    metadata <- isolate(app_data$metadata)
+    reduction_2d <- isolate(app_data$reduction_2d)
     cell_colour_variable <- cluster_variable()
-    n_clusters <- app_data$metadata %>% pluck(cell_colour_variable) %>% levels() %>% length()
+    n_clusters <- metadata %>% pluck(cell_colour_variable) %>% levels() %>% length()
 
-    data.frame(app_data$reduction_2d, app_data$metadata) %>%
+    data.frame(reduction_2d, metadata) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(.id) %>%
       # filter(cell_filter %in% input_cell_filter()) %>%
@@ -377,12 +386,15 @@ server <- function(input, output, session) {
   ### 3D plotly
   output$cluster_scatterplot_3d <- renderPlotly({
     req(app_data$reduction_3d)
-    req(app_data$metadata)
+    req(isolate(app_data$metadata))
+
     message('/// making 3d cluster scatterplot')
 
+    metadata <- isolate(app_data$metadata)
+    reduction_3d <- isolate(app_data$reduction_3d)
     cell_colour_variable <- cluster_variable()
 
-    data.frame(app_data$reduction_3d, app_data$metadata) %>%
+    data.frame(reduction_3d, metadata) %>%
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s', cluster_id, group_id)) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(.id) %>%
@@ -417,8 +429,15 @@ server <- function(input, output, session) {
     req(app_data$metadata)
     req(selected_feature$values)
     req(selected_feature$name)
+
+    if(list(app_data$metadata, selected_feature$values) %>% sapply(nrow) %>% Reduce(f='!=')) # check that cbind will have equal row number
+      return(NULL)
+
     message('/// making feature barplot')
 
+    metadata <- app_data$metadata
+    feature_values <- selected_feature$values
+    feature_name <- selected_feature$name
     palette_package <- 'brewer'
     picked_palette <- 'YlOrRd'
     palette_direction <- 1
@@ -431,9 +450,9 @@ server <- function(input, output, session) {
       fill_gradient <- scale_fill_gradient()
     }
 
-    cbind(app_data$metadata, feature_value=selected_feature$values) %>%
+    cbind(metadata, feature_value=feature_values) %>%
       # filter(cell_filter %in% input_cell_filter()) %>%
-      add_column(feature_name=selected_feature$name) %>%
+      add_column(feature_name=feature_name) %>%
       group_by(group_id, feature_name) %>%
       mutate(cells_in_group=n()) %>%
       filter(feature_value>0) %>% # only use cells with non-zero expression
@@ -447,10 +466,10 @@ server <- function(input, output, session) {
       mutate(group_id=fct_relevel(group_id, rev)) %>%
       ggplot() +
       aes(x=group_id, fill=mean_value, colour=group_id) +
-      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', selected_feature$name),
-           fill=sprintf(fmt='Mean signal', selected_feature$name),
+      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', feature_name),
+           fill=sprintf(fmt='Mean signal', feature_name),
            size='Reported by\ncells in group', colour='Cell type',
-           title=sprintf(fmt='%s in cell groups', selected_feature$name)) +
+           title=sprintf(fmt='%s in cell groups', feature_name)) +
       geom_linerange(mapping=aes(ymin=from_value, ymax=to_value), size=1.4, colour='grey30') +
       geom_point(mapping=aes(y=median_value, size=expressing_cells/cells_in_group*100), shape=21, colour='grey0', stroke=1) +
       scale_x_discrete() +
