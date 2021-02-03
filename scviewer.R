@@ -179,20 +179,8 @@ server <- function(input, output, session) {
     input_feature_value_limits$min <- input$feature_value_limits[1]
     input_feature_value_limits$max <- input$feature_value_limits[2]
     input_feature_value_limits$limits <- input$feature_value_limits}) %>%
-    debounce(9000)
+    debounce(500)
 
-  # observeEvent(eventExpr=input$feature_value_limits, ignoreInit=TRUE, handlerExpr={
-  #   req(input$feature_value_limits)
-  #   req(selected_feature$name)
-  #   sprintf('/// setting value limits for %s', isolate(selected_feature$name)) %>% message()
-
-  #   input_feature_value_limits$min <- input$feature_value_limits[1]
-  #   input_feature_value_limits$max <- input$feature_value_limits[2]
-  #   input_feature_value_limits$limits <- input$feature_value_limits})
-
-
-
- 
   ### collect the reduction method
   observe(x={
     req(app_data$h5_file)
@@ -487,6 +475,5 @@ server <- function(input, output, session) {
 
 # start the app
 shinyApp(ui, server)
-
 
 # https://github.com/plotly/plotly.js/blob/master/src/plot_api/plot_config.js
