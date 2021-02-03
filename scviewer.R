@@ -18,7 +18,7 @@ library(shinydashboard)
 library(dashboardthemes)
 library(plotly)
 library(RColorBrewer)
-library(scales) # for comma()
+library(scales) # for comma()
 library(esquisse) # for palettePicker()
 library(waiter)
 
