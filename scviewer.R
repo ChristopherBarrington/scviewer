@@ -118,28 +118,40 @@ server <- function(input, output, session) {
     app_data$reduction_2d <- NULL
     app_data$reduction_3d <- NULL
 
-    h5read(file=input$filename, name='metadata_group_id_names') -> group_id_levels
-    h5read(file=input$filename, name='metadata_cluster_id_names') -> cluster_id_levels
-    h5read(file=input$filename, name='metadata_cell_filter_names') -> cell_filter_levels
+    # h5read(file=input$filename, name='metadata_group_id_names') -> group_id_levels
+    # h5read(file=input$filename, name='metadata_cluster_id_names') -> cluster_id_levels
+    # h5read(file=input$filename, name='metadata_cell_filter_names') -> cell_filter_levels
 
-    h5read(file=input$filename, name='metadata') %>%
-      mutate(cluster_id=factor(cluster_id_levels[cluster_id], levels=cluster_id_levels),
-             group_id=factor(group_id_levels[group_id], levels=group_id_levels),
-             cell_filter=factor(cell_filter_levels[cell_filter], levels=cell_filter_levels)) -> app_data$metadata
-    app_data$h5_file <- input$filename
+    # h5read(file=input$filename, name='metadata') %>%
+    #   mutate(cluster_id=factor(cluster_id_levels[cluster_id], levels=cluster_id_levels),
+    #          group_id=factor(group_id_levels[group_id], levels=group_id_levels),
+    #          cell_filter=factor(cell_filter_levels[cell_filter], levels=cell_filter_levels)) -> app_data$metadata
 
-    all_features <- h5read(file=app_data$h5_file, name='features/names')
+    metadata_list <- h5read(file=input$filename, name='metadata')
+    for(i in names(metadata_list$factor_levels)) {
+      metadata_list$data %<>%
+        mutate(across(.cols=i, function(x) factor(metadata_list$factor_levels[[i]][x], levels=metadata_list$factor_levels[[i]])))
+    }
+
+    #### update UI elements
+    ##### features dropdown
+    all_features <- h5read(file=input$filename, name='features/names')
     update_autocomplete_input(session=session, id='feature',
                               options=all_features,
                               value=app_config$initial_feature)
 
-    app_data$metadata %>%
+    ##### cell filter selection
+    metadata_list$data %>%
       pluck('cell_filter') %>%
       levels() %>%
       updatePrettyCheckboxGroup(session=session, inputId='cell_filter',
                                 choices=., selected=.,
                                 prettyOptions=list(icon=icon('check-square-o'), status='primary',
-                                                   outline=TRUE, animation='jelly', bigger=TRUE, inline=TRUE))})
+                                                   outline=TRUE, animation='jelly', bigger=TRUE, inline=TRUE))
+
+    #### add to reactive values list
+    app_data$metadata <- metadata_list$data
+    app_data$h5_file <- input$filename})
 
   observe(x={if(getOption('scviewer.verbose', default=FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
 
@@ -294,26 +306,28 @@ server <- function(input, output, session) {
   # ### 3D plotly
   output$feature_scatterplot_3d <- renderPlotly({
     req(app_data$reduction_3d)
-    req(app_data$metadata)
     req(input_feature_value_limits$min)
+    req(input_feature_value_limits$max)
     req(isolate(selected_feature$values))
     req(isolate(selected_feature$name))
-    message('/// making 3d feature scatterplot')
+    req(isolate(app_data$metadata))
 
     if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
  
+    message('/// making 3d feature scatterplot')
+
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
     palette_direction <- selected_palette$direction
  
     if(palette_package=='brewer') {
-      colour_gradient <- brewer_pal(palette=picked_palette, direction=palette_direction)(32)
+      colour_gradient <- brewer_pal(palette=picked_palette, direction=palette_direction)(8)
     } else if(palette_package=='viridis') {
       colour_gradient <- viridis_pal(option=picked_palette, direction=1)(32)
     }
  
-    data.frame(app_data$reduction_3d, feature_value=isolate(selected_feature$values), app_data$metadata) %>%
+    data.frame(app_data$reduction_3d, feature_value=isolate(selected_feature$values), isolate(app_data$metadata)) %>%
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, selected_feature$name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=input_feature_value_limits$limits)) %>%
       arrange(feature_value) %>%
