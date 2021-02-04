@@ -34,6 +34,13 @@ options(warn=-1,
 # load the project description configuration file
 app_config <- yaml::read_yaml(file='test_config.yaml')
 
+## define the dataset choices from the config file; make a nested list of L1/L2 with L1$L2 as the value
+map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file') %>%
+  map_depth(.depth=1, function(x) x[names(x)!='config']) %>%
+  plyr::ldply(function(x) data.frame(name=names(x))) %>%
+  unite('key', .id, name, sep='$', remove=FALSE) %>%
+  plyr::dlply(~.id, plyr::dlply, ~name, pluck, 'key') -> dataset_choices
+
 # define the UI
 ## header
 dashboardHeader(disable=FALSE,
@@ -48,7 +55,7 @@ dashboardSidebar(disable=FALSE,
                  tags$style(type='text/css', '.autocomplete-items div:hover {background-color: #DDDDDD;}'),
                  selectizeInput(inputId='filename',
                                 label='Select a dataset',
-                                choices=map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file'),
+                                choices=dataset_choices,
                                 options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
                  autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
                  sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
@@ -104,6 +111,23 @@ dashboardPage(header=ui_header, sidebar=ui_sidebar, body=ui_body, title=NULL) ->
 
 # define the server
 server <- function(input, output, session) {
+  ## helper functions
+  get_config_values <- function(config, key)
+    reshape2::melt(config) %>%
+      filter_at(vars(-value), any_vars(.==key)) %>%
+      select_if(~all(.!=key | is.na(.))) %>%
+      unite(index, L2, L3, sep='$') %>%
+      spread(key=index, value=value) %>%
+      rename(default='NA$NA') %>%
+      set_names(str_remove, pattern='\\$config') %>%
+      mutate_all(as.character)
+
+  get_prioritised_value <- function(values, priority)
+    priority %>%
+      sapply(pluck, .x=values, .default=NA, simplify=TRUE) %>%
+      na.omit() %>%
+      head(n=1) %>%
+      unname()
 
   ## get UI inputs
   ### load the dataset file
@@ -112,19 +136,37 @@ server <- function(input, output, session) {
     req(input$filename)
     message('/// initialising from: ', input$filename)
 
+    #### parse dropdown key to give levels 1 and 2 from the datasets key of the yaml config
+    input$filename %>%
+      str_split('\\$') %>%
+      pluck(1) %>%
+      set_names('L1','L2') %>%
+      as.list() -> dataset_selection
+
+    #### get the h5 file from the config file
+    app_config %>%
+      pluck('datasets', dataset_selection$L1, dataset_selection$L2, 'file') %T>%
+      (. %>% sprintf(fmt='+++ h5_file: %s') %>% message()) -> h5_file
+
+    #### get the inital feature from the config file
+    get_config_values(app_config, 'initial_feature') %>%
+      get_prioritised_value(priority=c(input$filename, dataset_selection$L1, 'default')) %T>%
+      (. %>% sprintf(fmt='+++ initial_feature: %s') %>% message()) -> initial_feature
+
     #### load metadata table
-    metadata_list <- h5read(file=input$filename, name='metadata')
-    for(i in names(metadata_list$factor_levels)) {
+    metadata_list <- h5read(file=h5_file, name='metadata')
+
+    ##### for each would-be-factor variable in metadata$data, update the factor levels using metadata$factor_levels
+    for(i in names(metadata_list$factor_levels))
       metadata_list$data %<>%
         mutate(across(.cols=i, function(x) factor(metadata_list$factor_levels[[i]][x], levels=metadata_list$factor_levels[[i]])))
-    }
 
     #### update UI elements
     ##### features dropdown
-    all_features <- h5read(file=input$filename, name='features/names')
+    all_features <- h5read(file=h5_file, name='features/names')
     update_autocomplete_input(session=session, id='feature',
                               options=all_features,
-                              value=app_config$initial_feature)
+                              value=initial_feature)
 
     ##### cell filter selection
     metadata_list$data %>%
@@ -136,8 +178,9 @@ server <- function(input, output, session) {
                                                    outline=TRUE, animation='jelly', bigger=TRUE, inline=TRUE))
 
     #### add to reactive values list
+    app_data$initial_feature <- initial_feature
     app_data$metadata <- metadata_list$data
-    app_data$h5_file <- input$filename})
+    app_data$h5_file <- h5_file})
 
   observe(x={if(getOption('scviewer.verbose', default=FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
 
@@ -145,25 +188,27 @@ server <- function(input, output, session) {
   selected_feature <- reactiveValues()
   observe(x={
     req(app_data$h5_file)
-    input_feature <- if_else(input$feature=='', app_config$initial_feature, input$feature)
-    sprintf('/// reading feature [%s] from: %s', input_feature, app_data$h5_file) %>% message()
-
+    
     h5_file <- app_data$h5_file
+    input_feature <- if_else(input$feature=='', app_data$initial_feature, input$feature)
+
+    sprintf('/// reading feature [%s] from: %s', input_feature, h5_file) %>% message()
+
     h5_name <- input_feature %>% str_to_lower() %>% sprintf(fmt='features/values/%s')
     feature_values <- h5read(file=h5_file, name=h5_name)
      
-      slider_min <- min(feature_values) %>% subtract(0.05) %>% round(digits=1)
-      slider_max <- max(feature_values) %>% add(0.05) %>% round(digits=1)
-     
-      sprintf(fmt='%s signal limits', input_feature) %>%
-        updateSliderInput(session=session, inputId='feature_value_limits')
-     
-      updateSliderInput(session=session, inputId='feature_value_limits',
-                        min=slider_min, max=slider_max,
-                        value=c(slider_min, slider_max))
+    slider_min <- min(feature_values) %>% subtract(0.05) %>% round(digits=1)
+    slider_max <- max(feature_values) %>% add(0.05) %>% round(digits=1)
+   
+    sprintf(fmt='%s signal limits', input_feature) %>%
+      updateSliderInput(session=session, inputId='feature_value_limits')
+   
+    updateSliderInput(session=session, inputId='feature_value_limits',
+                      min=slider_min, max=slider_max,
+                      value=c(slider_min, slider_max))
 
-      selected_feature$name <- input_feature
-      selected_feature$values <- feature_values})
+    selected_feature$name <- input_feature
+    selected_feature$values <- feature_values})
   
   ### collect the colour scale limits
   input_feature_value_limits <- reactiveValues()
@@ -174,7 +219,7 @@ server <- function(input, output, session) {
     if(all(input$feature_value_limits==0))
       return(NULL)
 
-    sprintf('/// setting value limits for %s to [%s]', isolate(selected_feature$name), str_c(input$feature_value_limits, collapse=',')) %>% message()
+    sprintf('/// setting value limits for %s to [%s]', selected_feature$name, str_c(input$feature_value_limits, collapse=',')) %>% message()
 
     input_feature_value_limits$min <- input$feature_value_limits[1]
     input_feature_value_limits$max <- input$feature_value_limits[2]
@@ -196,18 +241,20 @@ server <- function(input, output, session) {
 
   ### collect the point size and reduce reactivity
   input_point_size <- reactive(x={
-    sprintf('/// set point size [%s]', input$point_size) %>% message()
-    input$point_size}) %>%
+    input$point_size %T>%
+      (. %>% sprintf(fmt='/// set point_size [%s]') %>% message())}) %>%
     debounce(500)
 
   ### collect the selected colour palette
   selected_palette <- reactiveValues()
   observe(x={
     req(input$predefined_palette)
-    sprintf('/// selected palette [%s]', input$predefined_palette) %>% message()
  
     #### split the palette source and name from the string
-    input$predefined_palette %>% str_split(pattern=':') %>% pluck(1) -> sp
+    input$predefined_palette %T>%
+      (. %>% sprintf(fmt='/// selected palette [%s]') %>% message()) %>%
+      str_split(pattern=':') %>%
+      pluck(1) -> sp
  
     #### save palette source and name into the reactive values list
     selected_palette$package <- sp[[1]]
@@ -215,13 +262,13 @@ server <- function(input, output, session) {
     selected_palette$type <- sp[[3]]
     selected_palette$direction <- sp[[3]] %>% switch(f=1, r=-1)})
 
-  ### collect the variable by which cell clusters are coloured
+  ### (pretend to) collect the variable by which cell clusters are coloured
   cluster_variable <- function(...) 'cluster_id'
 
   ### collect the cell filtering values
   input_cell_filter <- reactive(x={
-    sprintf('/// set cell_filter to [%s]', str_c(input$cell_filter, collapse=', ')) %>% message()
-    input$cell_filter}) %>%
+    input$cell_filter %T>%
+      (. %>% str_c(collapse=', ') %>% sprintf(fmt='/// set cell_filter to [%s]') %>% message())}) %>%
     debounce(500)
 
   ## on startup, show reminder to load a dataset
@@ -301,9 +348,9 @@ server <- function(input, output, session) {
     req(app_data$reduction_3d)
     req(input_feature_value_limits$min)
     req(input_feature_value_limits$max)
-    req(isolate(selected_feature$values)
-    req(isolate(selected_feature$name)
-    req(isolate(app_data$metadata)
+    req(isolate(selected_feature$values))
+    req(isolate(selected_feature$name))
+    req(isolate(app_data$metadata))
 
     if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
