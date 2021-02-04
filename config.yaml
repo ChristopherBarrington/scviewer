@@ -1,11 +1,21 @@
-title: An informative project title to go in the header
-initial_feature: a feature in the matrix to initialise with
+title: SC19022
+initial_feature: SOX2
 datasets:
-  dropdown group 1:
-    dataset 1:
-      file: /path/to/a/trimmed/dataset.h5
-    dataset 2:
-      file: relative/path/to/a/trimmed/dataset.h5
-  dropdown group 2:
-    dataset 1:
-      file: /path/to/another/trimmed/dataset.h5
+  Human:
+    Contaminant-free:
+      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/human.h5
+    Neural:
+      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/human_neural.h5
+    Peripheral neural:
+      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/human_peripheral.h5
+    Progenitors:
+      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/human_progenitors.h5
+  Mouse:
+    config:
+      initial_feature: Sox2
+    Contaminant-free:
+      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/mouse.h5
+    Neural:
+      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/mouse_neural.h5
+    Peripheral neural:
+      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/mouse_peripheral.h5
