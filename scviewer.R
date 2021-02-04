@@ -32,7 +32,7 @@ options(warn=-1,
         scviewer.verbose=FALSE)
 
 # load the project description configuration file
-app_config <- yaml::read_yaml(file='test_config.yaml')
+app_config <- yaml::read_yaml(file='config.yaml')
 
 ## define the dataset choices from the config file; make a nested list of L1/L2 with L1$L2 as the value
 map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file') %>%
