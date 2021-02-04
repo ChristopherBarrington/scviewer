@@ -129,12 +129,16 @@ server <- function(input, output, session) {
       head(n=1) %>%
       unname()
 
+  log_message <- function(text, prepend='///')
+    str_c(prepend, {Sys.time() %>% format('%H:%M:%S')}, text, sep=' ') %>%
+      message()
+
   ## get UI inputs
   ### load the dataset file
   app_data <- reactiveValues()
   observe(x={
     req(input$filename)
-    message('/// initialising from: ', input$filename)
+    sprintf(fmt='initialising from: %s', input$filename) %>% log_message()
 
     #### parse dropdown key to give levels 1 and 2 from the datasets key of the yaml config
     input$filename %>%
@@ -146,12 +150,12 @@ server <- function(input, output, session) {
     #### get the h5 file from the config file
     app_config %>%
       pluck('datasets', dataset_selection$L1, dataset_selection$L2, 'file') %T>%
-      (. %>% sprintf(fmt='+++ h5_file: %s') %>% message()) -> h5_file
+      (. %>% sprintf(fmt='h5_file: %s') %>% log_message(prepend='+++')) -> h5_file
 
     #### get the inital feature from the config file
     get_config_values(app_config, 'initial_feature') %>%
       get_prioritised_value(priority=c(input$filename, dataset_selection$L1, 'default')) %T>%
-      (. %>% sprintf(fmt='+++ initial_feature: %s') %>% message()) -> initial_feature
+      (. %>% sprintf(fmt='initial_feature: %s') %>% log_message(prepend='+++')) -> initial_feature
 
     #### load metadata table
     metadata_list <- h5read(file=h5_file, name='metadata')
@@ -192,7 +196,7 @@ server <- function(input, output, session) {
     h5_file <- app_data$h5_file
     input_feature <- if_else(input$feature=='', app_data$initial_feature, input$feature)
 
-    sprintf('/// reading feature [%s] from: %s', input_feature, h5_file) %>% message()
+    sprintf('reading feature [%s] from: %s', input_feature, h5_file) %>% log_message()
 
     h5_name <- input_feature %>% str_to_lower() %>% sprintf(fmt='features/values/%s')
     feature_values <- h5read(file=h5_file, name=h5_name)
@@ -219,7 +223,7 @@ server <- function(input, output, session) {
     if(all(input$feature_value_limits==0))
       return(NULL)
 
-    sprintf('/// setting value limits for %s to [%s]', selected_feature$name, str_c(input$feature_value_limits, collapse=',')) %>% message()
+    sprintf('setting value limits for %s to [%s]', selected_feature$name, str_c(input$feature_value_limits, collapse=',')) %>% log_message()
 
     input_feature_value_limits$min <- input$feature_value_limits[1]
     input_feature_value_limits$max <- input$feature_value_limits[2]
@@ -230,7 +234,7 @@ server <- function(input, output, session) {
   observe(x={
     req(app_data$h5_file)
     req(input$reduction_method)
-    sprintf('/// reading reduction [%s] from: %s', input$reduction_method, app_data$h5_file) %>% message()
+    sprintf('reading reduction [%s] from: %s', input$reduction_method, app_data$h5_file) %>% log_message()
 
     h5_file <- app_data$h5_file
     h5_name_2d <- input$reduction_method %>% sprintf(fmt='reductions/%s') #%T>% print()
@@ -242,7 +246,7 @@ server <- function(input, output, session) {
   ### collect the point size and reduce reactivity
   input_point_size <- reactive(x={
     input$point_size %T>%
-      (. %>% sprintf(fmt='/// set point_size [%s]') %>% message())}) %>%
+      (. %>% sprintf(fmt='set point_size [%s]') %>% log_message())}) %>%
     debounce(500)
 
   ### collect the selected colour palette
@@ -252,7 +256,7 @@ server <- function(input, output, session) {
  
     #### split the palette source and name from the string
     input$predefined_palette %T>%
-      (. %>% sprintf(fmt='/// selected palette [%s]') %>% message()) %>%
+      (. %>% sprintf(fmt='selected palette [%s]') %>% log_message()) %>%
       str_split(pattern=':') %>%
       pluck(1) -> sp
  
@@ -268,7 +272,7 @@ server <- function(input, output, session) {
   ### collect the cell filtering values
   input_cell_filter <- reactive(x={
     input$cell_filter %T>%
-      (. %>% str_c(collapse=', ') %>% sprintf(fmt='/// set cell_filter to [%s]') %>% message())}) %>%
+      (. %>% str_c(collapse=', ') %>% sprintf(fmt='set cell_filter to [%s]') %>% log_message())}) %>%
     debounce(500)
 
   ## on startup, show reminder to load a dataset
@@ -301,7 +305,7 @@ server <- function(input, output, session) {
     if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
 
-    message('/// making 2d feature scatterplot')
+    log_message('making 2d feature scatterplot')
 
     metadata <- isolate(app_data$metadata)
     reduction_2d <- isolate(app_data$reduction_2d)
@@ -355,7 +359,7 @@ server <- function(input, output, session) {
     if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
       return(NULL)
 
-    message('/// making 3d feature scatterplot')
+    log_message('making 3d feature scatterplot')
 
     metadata <- isolate(app_data$metadata)
     reduction_3d <- isolate(app_data$reduction_3d)
@@ -408,7 +412,7 @@ server <- function(input, output, session) {
     req(app_data$reduction_2d)
     req(isolate(app_data$metadata))
 
-    message('/// making 2d cluster scatterplot')
+    log_message('making 2d cluster scatterplot')
 
     metadata <- isolate(app_data$metadata)
     reduction_2d <- isolate(app_data$reduction_2d)
@@ -435,7 +439,7 @@ server <- function(input, output, session) {
     req(app_data$reduction_3d)
     req(isolate(app_data$metadata))
 
-    message('/// making 3d cluster scatterplot')
+    log_message('making 3d cluster scatterplot')
 
     metadata <- isolate(app_data$metadata)
     reduction_3d <- isolate(app_data$reduction_3d)
@@ -480,7 +484,7 @@ server <- function(input, output, session) {
     if(list(app_data$metadata, selected_feature$values) %>% sapply(nrow) %>% Reduce(f='!=')) # check that cbind will have equal row number
       return(NULL)
 
-    message('/// making feature barplot')
+    log_message('making feature barplot')
 
     metadata <- app_data$metadata
     feature_values <- selected_feature$values
