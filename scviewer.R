@@ -49,6 +49,14 @@ dashboardHeader(disable=FALSE,
 
 ## sidebar
 dashboardSidebar(disable=FALSE,
+                 tags$script("$(document).on('shiny:busy', function() {
+                   var currentdate = new Date(); 
+                   var msg = '+++ shiny:busy: ' + currentdate.getHours() + ':' + currentdate.getMinutes() + ':' + currentdate.getSeconds();
+                   console.log(msg);});"),
+                 tags$script("$(document).on('shiny:idle', function() {
+                   var currentdate = new Date(); 
+                   var msg = '--- shiny:idle: ' + currentdate.getHours() + ':' + currentdate.getMinutes() + ':' + currentdate.getSeconds();
+                   console.log(msg);});"),
                  tags$style(type='text/css', '.sidebar-toggle {visibility: hidden !important;}'),
                  tags$style(type='text/css', '.main-header .logo {text-align:left !important;}'),
                  tags$style(type='text/css', '.irs-grid-text {visibility: hidden !important;}'),
