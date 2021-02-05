@@ -51,11 +51,11 @@ dashboardHeader(disable=FALSE,
 dashboardSidebar(disable=FALSE,
                  tags$script("$(document).on('shiny:busy', function() {
                    var currentdate = new Date(); 
-                   var msg = '+++ shiny:busy: ' + currentdate.getHours() + ':' + currentdate.getMinutes() + ':' + currentdate.getSeconds();
+                   var msg = '+++ shiny:busy: ' + currentdate.getHours().toString().padStart(2, '0') + ':' + currentdate.getMinutes().toString().padStart(2, '0') + ':' + currentdate.getSeconds().toString().padStart(2, '0');
                    console.log(msg);});"),
                  tags$script("$(document).on('shiny:idle', function() {
                    var currentdate = new Date(); 
-                   var msg = '--- shiny:idle: ' + currentdate.getHours() + ':' + currentdate.getMinutes() + ':' + currentdate.getSeconds();
+                   var msg = '--- shiny:idle: ' + currentdate.getHours().toString().padStart(2, '0') + ':' + currentdate.getMinutes().toString().padStart(2, '0') + ':' + currentdate.getSeconds().toString().padStart(2, '0');
                    console.log(msg);});"),
                  tags$style(type='text/css', '.sidebar-toggle {visibility: hidden !important;}'),
                  tags$style(type='text/css', '.main-header .logo {text-align:left !important;}'),
