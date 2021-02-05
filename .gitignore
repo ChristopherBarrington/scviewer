@@ -38,3 +38,6 @@ vignettes/*.pdf
 # scviewer files
 test_config.yaml
 .DS_Store
+
+# camp-specific
+.babs
