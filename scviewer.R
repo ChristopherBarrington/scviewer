@@ -213,7 +213,7 @@ server <- function(input, output, session) {
     list(initial_feature=initial_feature,
          reductions=reductions,
          metadata=metadata_list$data,
-         group_bands=group_bands,
+         # group_bands=group_bands,
          h5_file=h5_file,
          dataset_key=input_dataset_key)}) -> app_data
 
@@ -528,7 +528,7 @@ server <- function(input, output, session) {
       return(NULL)
 
     metadata <- app_data$metadata
-    group_bands <- app_data$group_bands
+    # group_bands <- app_data$group_bands
     feature_values <- selected_feature$values
     feature_name <- selected_feature$name
     palette_package <- 'brewer'
@@ -547,12 +547,12 @@ server <- function(input, output, session) {
 
     ### collect positions of bands to group (cell types)
     ### disabled, use geom_rect in plot
-    group_bands %>%
-      c(0.5, .) %>%
-      cumsum() %>%
-      (function(x) data.frame(xmin=head(x, n=-1), xmax=tail(x, n=-1))) %>%
-      mutate(colour=rep(c('white','grey95'), length.out=n())) %>%
-      rbind(.[NA,]) -> group_band_positions
+    # group_bands %>%
+    #   c(0.5, .) %>%
+    #   cumsum() %>%
+    #   (function(x) data.frame(xmin=head(x, n=-1), xmax=tail(x, n=-1))) %>%
+    #   mutate(colour=rep(c('white','grey95'), length.out=n())) %>%
+    #   rbind(.[NA,]) -> group_band_positions
 
     cbind(metadata, feature_value=feature_values) %>%
       # filter(cell_filter %in% input_cell_filter()) %>%
