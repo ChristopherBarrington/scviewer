@@ -129,7 +129,7 @@ server <- function(input, output, session) {
       select_if(~all(.!=key | is.na(.))) %>%
       unite(index, L2, L3, sep='$') %>%
       spread(key=index, value=value) %>%
-      rename(default='NA$NA') %>%
+      rename_at(vars(matches('^NA\\$NA$')), function(x) 'default') %>%
       set_names(str_remove, pattern='\\$config') %>%
       mutate_all(as.character)
 
@@ -166,10 +166,21 @@ server <- function(input, output, session) {
       pluck('datasets', dataset_selection$L1, dataset_selection$L2, 'file') %T>%
       (. %>% sprintf(fmt='(app_data) h5_file: %s') %>% log_message(prepend='+++')) -> h5_file
 
-    #### get the inital feature from the config file
+    #### get the initial feature from the config file
     get_config_values(app_config, 'initial_feature') %>%
       get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default')) %T>%
       (. %>% sprintf(fmt='(app_data) initial_feature: %s') %>% log_message(prepend='+++')) -> initial_feature
+
+    #### get and evaluate any group bands
+    #### this is a vector of the number of rows in each band
+    #### the yaml should be a comma-separated string
+    # get_config_values(app_config, 'group_bands') %>%
+    #   mutate(default='') %>%
+    #   get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default')) %T>%
+    #   (. %>% sprintf(fmt='(app_data) group_bands: %s') %>% log_message(prepend='+++')) %>%
+    #   sprintf(fmt='c(%s)') %>%
+    #   parse(text=.) %>%
+    #   eval() -> group_bands
 
     #### load metadata table
     metadata_list <- h5read(file=h5_file, name='metadata')
@@ -202,7 +213,9 @@ server <- function(input, output, session) {
     list(initial_feature=initial_feature,
          reductions=reductions,
          metadata=metadata_list$data,
-         h5_file=h5_file)}) -> app_data
+         group_bands=group_bands,
+         h5_file=h5_file,
+         dataset_key=input_dataset_key)}) -> app_data
 
   observe(x={if(getOption('scviewer.verbose', default=FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
 
@@ -235,7 +248,6 @@ server <- function(input, output, session) {
 
     list(name=input_feature,
          values=feature_values)}) -> selected_feature
-
 
   ### collect the colour scale limits
   reactive(x={
@@ -365,10 +377,11 @@ server <- function(input, output, session) {
        colour_gradient +
        guides(color=guide_colourbar(label.position='bottom', frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2)) +
        theme_void() +
-       theme(legend.box.margin=margin(r=10, b=10, t=0, l=0),
-             legend.position=c(1,0),
-             legend.justification=c(1,0),
+       theme(aspect.ratio=1,
+             legend.box.margin=margin(r=10, b=10, t=0, l=0),
              legend.direction='horizontal',
+             legend.justification=c(1,0),
+             legend.position=c(1,0),
              legend.title=element_blank(),
              panel.border=element_rect(fill=NA, colour=NA),
              panel.background=element_rect(fill=panel_background_rgb, colour=NA),
@@ -457,9 +470,10 @@ server <- function(input, output, session) {
        geom_point(size=input_point_size()) +
        scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}) +
        theme_void() +
-       theme(legend.position='none',
-             panel.border=element_rect(fill=NA, colour=NA),
+       theme(aspect.ratio=1,
+             legend.position='none',
              panel.background=element_rect(fill=panel_background_rgb, colour=NA),
+             panel.border=element_rect(fill=NA, colour=NA),
              text=element_text(size=14))}}, bg='transparent')
 
   ### 3D plotly
@@ -514,6 +528,7 @@ server <- function(input, output, session) {
       return(NULL)
 
     metadata <- app_data$metadata
+    group_bands <- app_data$group_bands
     feature_values <- selected_feature$values
     feature_name <- selected_feature$name
     palette_package <- 'brewer'
@@ -530,6 +545,15 @@ server <- function(input, output, session) {
       fill_gradient <- scale_fill_gradient()
     }
 
+    ### collect positions of bands to group (cell types)
+    ### disabled, use geom_rect in plot
+    group_bands %>%
+      c(0.5, .) %>%
+      cumsum() %>%
+      (function(x) data.frame(xmin=head(x, n=-1), xmax=tail(x, n=-1))) %>%
+      mutate(colour=rep(c('white','grey95'), length.out=n())) %>%
+      rbind(.[NA,]) -> group_band_positions
+
     cbind(metadata, feature_value=feature_values) %>%
       # filter(cell_filter %in% input_cell_filter()) %>%
       add_column(feature_name=feature_name) %>%
@@ -543,41 +567,35 @@ server <- function(input, output, session) {
                 from_value=quantile(feature_value, 0.25),
                 to_value=quantile(feature_value, 0.75)) %>%
       mutate(group_id=fct_relevel(group_id, rev)) %>%
-      ggplot() +
-
-      # aes(x=group_id, fill=mean_value, colour=group_id) +
-      # labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', feature_name),
-      #      fill=sprintf(fmt='Mean signal', feature_name),
-      #      size='Reported by\ncells in group', colour='Cell type',
-      #      title=sprintf(fmt='%s in cell groups', feature_name)) +
-      # geom_linerange(mapping=aes(ymin=from_value, ymax=to_value), size=1.4, colour='grey30') +
-      # geom_point(mapping=aes(y=median_value, size=expressing_cells/cells_in_group*100), shape=21, colour='grey0', stroke=1) +
-
-      aes(x=group_id, y=expressing_cells/cells_in_group*100, fill=mean_value) +
-      labs(x='Cell types',
-           y='Detected in cells within type',
-           fill=sprintf(fmt='%s\n(mean)', feature_name),
-           title=sprintf(fmt='%s in cell type', feature_name)) +
-      geom_point(shape=21, colour='grey0', stroke=1, size=5) +
-
-      scale_x_discrete(drop=FALSE) +
-      scale_y_continuous(labels=function(y) str_c(y, '%')) +
-      # scale_size_continuous(labels=function(l) str_c(l, '%'), range=c(2,8)) +
-      fill_gradient +
-      coord_flip() +
-      guides(colour='none', 
-             fill=guide_colourbar(order=2, frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2), 
-             size=guide_legend(order=3)) +
-      theme_bw() +
-      theme(axis.ticks=element_line(size=1),
-            axis.title.y=element_blank(),
-            legend.background=element_blank(),
-            legend.key=element_blank(),
-            panel.background=element_rect(fill=panel_background_rgb),
-            panel.border=element_rect(size=1, colour='black'),
-            panel.grid.major.x=element_blank(),
-            plot.background=element_blank(),
-            text=element_text(size=14))}, bg='transparent')
+      {ggplot(data=.) +
+       aes(x=group_id, y=expressing_cells/cells_in_group*100, fill=mean_value) +
+       labs(x='Cell types',
+            y='Detected in cells within type',
+            fill=sprintf(fmt='%s\n(mean)', feature_name),
+            title=sprintf(fmt='%s in cell type', feature_name)) +
+       # geom_rect(data=group_band_positions, mapping=aes(xmin=xmin, xmax=xmax, ymin=-Inf, ymax=Inf), fill=group_band_positions$colour, inherit.aes=FALSE) +
+       # geom_vline(xintercept={levels(.$group_id) %>% length() %>% seq()}, colour='grey60', size=0.5) +
+       geom_point(shape=21, colour='grey0', stroke=1, size=5) +
+       scale_x_discrete(drop=FALSE) +
+       scale_y_continuous(labels=function(y) str_c(y, '%')) +
+       fill_gradient +
+       coord_flip() +
+       guides(colour='none', 
+              fill=guide_colourbar(order=2, frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2), 
+              size=guide_legend(order=3)) +
+       theme_bw() +
+       theme(axis.ticks=element_line(size=1),
+             axis.title.y=element_blank(),
+             legend.background=element_blank(),
+             legend.key=element_blank(),
+             panel.background=element_rect(fill=panel_background_rgb),
+             panel.border=element_rect(size=1, colour='black'),
+             panel.grid.major.x=element_blank(),
+             panel.grid.major.y=element_line(colour='grey85'),
+             panel.grid.minor.x=element_blank(),
+             panel.grid.minor.y=element_blank(),
+             plot.background=element_blank(),
+             text=element_text(size=14))}}, bg='transparent')
 }
 
 # start the app
