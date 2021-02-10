@@ -25,6 +25,9 @@ library(waiter)
 library(magrittr)
 library(tidyverse)
 
+if(packageVersion('dqshiny') < '0.0.5')
+    stop('!!! dqshiny version 0.0.5 is required')
+
 message('/// ----- ----- ----- ----- -----')
 str_c('/// started at:', date(), sep=' ') %>% message()
 options(warn=-1,
@@ -143,13 +146,16 @@ server <- function(input, output, session) {
 
   ## get UI inputs
   ### load the dataset file
-  app_data <- reactiveValues()
-  observe(x={
+  initialised <- reactiveValues()
+  reactive(x={
     req(input$filename)
-    sprintf(fmt='initialising from: %s', input$filename) %>% log_message()
+
+    input_dataset_key <- input$filename
+
+    sprintf(fmt='(app_data) initialising from: %s', input_dataset_key) %>% log_message()
 
     #### parse dropdown key to give levels 1 and 2 from the datasets key of the yaml config
-    input$filename %>%
+    input_dataset_key %>%
       str_split('\\$') %>%
       pluck(1) %>%
       set_names('L1','L2') %>%
@@ -158,12 +164,12 @@ server <- function(input, output, session) {
     #### get the h5 file from the config file
     app_config %>%
       pluck('datasets', dataset_selection$L1, dataset_selection$L2, 'file') %T>%
-      (. %>% sprintf(fmt='h5_file: %s') %>% log_message(prepend='+++')) -> h5_file
+      (. %>% sprintf(fmt='(app_data) h5_file: %s') %>% log_message(prepend='+++')) -> h5_file
 
     #### get the inital feature from the config file
     get_config_values(app_config, 'initial_feature') %>%
-      get_prioritised_value(priority=c(input$filename, dataset_selection$L1, 'default')) %T>%
-      (. %>% sprintf(fmt='initial_feature: %s') %>% log_message(prepend='+++')) -> initial_feature
+      get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default')) %T>%
+      (. %>% sprintf(fmt='(app_data) initial_feature: %s') %>% log_message(prepend='+++')) -> initial_feature
 
     #### load metadata table
     metadata_list <- h5read(file=h5_file, name='metadata')
@@ -172,6 +178,9 @@ server <- function(input, output, session) {
     for(i in names(metadata_list$factor_levels))
       metadata_list$data %<>%
         mutate(across(.cols=i, function(x) factor(metadata_list$factor_levels[[i]][x], levels=metadata_list$factor_levels[[i]])))
+
+    #### pull out the list of reductions
+    reductions <- h5read(file=h5_file, name='reductions')
 
     #### update UI elements
     ##### features dropdown
@@ -190,98 +199,107 @@ server <- function(input, output, session) {
                                                    outline=TRUE, animation='jelly', bigger=TRUE, inline=TRUE))
 
     #### add to reactive values list
-    app_data$initial_feature <- initial_feature
-    app_data$metadata <- metadata_list$data
-    app_data$h5_file <- h5_file})
+    list(initial_feature=initial_feature,
+         reductions=reductions,
+         metadata=metadata_list$data,
+         h5_file=h5_file)}) -> app_data
 
   observe(x={if(getOption('scviewer.verbose', default=FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
 
   ### collect the user-specified feature name
-  selected_feature <- reactiveValues()
-  observe(x={
-    req(app_data$h5_file)
-    
-    h5_file <- app_data$h5_file
-    input_feature <- if_else(input$feature=='', app_data$initial_feature, input$feature)
+  reactive(x={
+    app_data <- app_data()
 
-    sprintf('reading feature [%s] from: %s', input_feature, h5_file) %>% log_message()
+    input_feature <- input$feature
+    initial_feature <- app_data$initial_feature
+    h5_file <- app_data$h5_file
+
+    input_feature <- if_else(input_feature=='', initial_feature, input_feature)
+
+    sprintf('(selected_feature) reading feature [%s] from: %s {%s}', input_feature, h5_file, input$feature) %>% log_message()
 
     h5_name <- input_feature %>% str_to_lower() %>% sprintf(fmt='features/values/%s')
     feature_values <- h5read(file=h5_file, name=h5_name)
      
     slider_min <- min(feature_values) %>% subtract(0.05) %>% round(digits=1)
     slider_max <- max(feature_values) %>% add(0.05) %>% round(digits=1)
+
+    sprintf('(selected_feature) setting value limits for %s to [%s]', input_feature, str_c(slider_min, slider_max, sep=',')) %>% log_message()
    
-    sprintf(fmt='%s signal limits', input_feature) %>%
-      updateSliderInput(session=session, inputId='feature_value_limits')
+    # sprintf(fmt='%s signal limits', input_feature) %>%
+    #   updateSliderInput(session=session, inputId='feature_value_limits')
    
     updateSliderInput(session=session, inputId='feature_value_limits',
                       min=slider_min, max=slider_max,
                       value=c(slider_min, slider_max))
 
-    selected_feature$name <- input_feature
-    selected_feature$values <- feature_values})
-  
+    list(name=input_feature,
+         values=feature_values)}) -> selected_feature
+
+
   ### collect the colour scale limits
-  input_feature_value_limits <- reactiveValues()
   reactive(x={
     req(input$feature_value_limits)
-    req(selected_feature$name)
-
+ 
     if(all(input$feature_value_limits==0))
       return(NULL)
-
-    sprintf('setting value limits for %s to [%s]', selected_feature$name, str_c(input$feature_value_limits, collapse=',')) %>% log_message()
-
-    input_feature_value_limits$min <- input$feature_value_limits[1]
-    input_feature_value_limits$max <- input$feature_value_limits[2]
-    input_feature_value_limits$limits <- input$feature_value_limits}) %>%
-    debounce(500)
+ 
+    selected_feature <- isolate(selected_feature())
+    feature_value_limits <- input$feature_value_limits
+ 
+    sprintf('(input_feature_value_limits) getting value limits for %s as [%s]', selected_feature$name, str_c(feature_value_limits, collapse=',')) %>% log_message()
+ 
+    list(min=feature_value_limits[1],
+         max=feature_value_limits[2],
+         limits=feature_value_limits)}) -> input_feature_value_limits
 
   ### collect the reduction method
-  observe(x={
-    req(app_data$h5_file)
+  reactive(x={
     req(input$reduction_method)
-    sprintf('reading reduction [%s] from: %s', input$reduction_method, app_data$h5_file) %>% log_message()
+
+    app_data <- app_data()
 
     h5_file <- app_data$h5_file
-    h5_name_2d <- input$reduction_method %>% sprintf(fmt='reductions/%s') #%T>% print()
-    h5_name_3d <- str_c(input$reduction_method, '_3d') %>% sprintf(fmt='reductions/%s') #%T>% print()
+    reductions <- app_data$reductions
+    reduction_method <- input$reduction_method
 
-    app_data$reduction_2d <- h5read(file=h5_file, name=h5_name_2d)
-    app_data$reduction_3d <- h5read(file=h5_file, name=h5_name_3d)})
+    sprintf('(reduction_coords) reading reduction [%s] from: %s', reduction_method, h5_file) %>% log_message()
+
+    name_2d <- reduction_method
+    name_3d <- str_c(reduction_method, '_3d')
+
+    reductions[c(name_2d, name_3d)] %>%
+      set_names(c('d2','d3'))}) -> reduction_coords
 
   ### collect the point size and reduce reactivity
-  input_point_size <- reactive(x={
+  reactive(x={
     input$point_size %T>%
-      (. %>% sprintf(fmt='set point_size [%s]') %>% log_message())}) %>%
-    debounce(500)
+      (. %>% sprintf(fmt='(input_point_size) set point_size [%s]') %>% log_message())}) %>%
+    debounce(500) -> input_point_size
 
   ### collect the selected colour palette
-  selected_palette <- reactiveValues()
-  observe(x={
+  reactive(x={
     req(input$predefined_palette)
  
     #### split the palette source and name from the string
     input$predefined_palette %T>%
-      (. %>% sprintf(fmt='selected palette [%s]') %>% log_message()) %>%
+      (. %>% sprintf(fmt='(selected_palette) selected palette [%s]') %>% log_message()) %>%
       str_split(pattern=':') %>%
-      pluck(1) -> sp
- 
-    #### save palette source and name into the reactive values list
-    selected_palette$package <- sp[[1]]
-    selected_palette$name <- sp[[2]]
-    selected_palette$type <- sp[[3]]
-    selected_palette$direction <- sp[[3]] %>% switch(f=1, r=-1)})
+      pluck(1) %>%
+      as.list() %>%
+      set_names(c('package', 'name', 'type')) %>%
+      append(list(direction={.$type %>% switch(f=1, r=-1)}))}) -> selected_palette
 
   ### (pretend to) collect the variable by which cell clusters are coloured
   cluster_variable <- function(...) 'cluster_id'
 
   ### collect the cell filtering values
-  input_cell_filter <- reactive(x={
+  reactive(x={
+    req(input$cell_filter)
+
     input$cell_filter %T>%
-      (. %>% str_c(collapse=', ') %>% sprintf(fmt='set cell_filter to [%s]') %>% log_message())}) %>%
-    debounce(500)
+      (. %>% str_c(collapse=', ') %>% sprintf(fmt='(input_cell_filter) set cell_filter to [%s]') %>% log_message())}) %>%
+    debounce(500) -> input_cell_filter
 
   ## on startup, show reminder to load a dataset
   sendSweetAlert(
@@ -303,24 +321,44 @@ server <- function(input, output, session) {
   ## make selected feature scatterplots
   ### 2D ggplot
   output$feature_scatterplot <- renderPlot({
-    req(app_data$reduction_2d)
-    req(input_feature_value_limits$min)
-    req(input_feature_value_limits$max)
-    req(isolate(selected_feature$values))
-    req(isolate(selected_feature$name))
-    req(isolate(app_data$metadata))
-
-    if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
-      return(NULL)
+    
+    app_data <- app_data()
+    input_cell_filter <- input_cell_filter()
+    input_feature_value_limits <- input_feature_value_limits()
+    input_point_size <- input_point_size()
+    reduction_coords <- reduction_coords()
+    selected_feature <- isolate(selected_feature())
+    selected_palette <- selected_palette()
 
     log_message('making 2d feature scatterplot')
 
-    metadata <- isolate(app_data$metadata)
-    reduction_2d <- isolate(app_data$reduction_2d)
-    values <- isolate(selected_feature$values)
+    metadata <- app_data$metadata
+    reduction_coords %<>% pluck('d2')
+    values <- selected_feature$values
+    feature_name <- selected_feature$name
+    limits <- input_feature_value_limits$limits
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
     palette_direction <- selected_palette$direction
+
+
+
+# print(head(metadata))
+# print(head(reduction_coords))
+# print(head(values))
+# print(feature_name)
+# print(limits)
+
+# print(digest::digest(metadata))
+# print(digest::digest(reduction_coords))
+# print(digest::digest(values))
+# print(digest::digest(feature_name))
+# print(digest::digest(limits))
+
+
+
+
+
 
     get_labels <- function(x) {
       x %>% is.na() %>% not() %>% which() %>% range() -> idx
@@ -329,20 +367,20 @@ server <- function(input, output, session) {
     }
 
     if(palette_package=='brewer') {
-      colour_gradient <- scale_colour_distiller(palette=picked_palette, direction=palette_direction, labels=get_labels, limits=input_feature_value_limits$limits, oob=squish)
+      colour_gradient <- scale_colour_distiller(palette=picked_palette, direction=palette_direction, labels=get_labels, limits=limits, oob=squish)
     } else if(palette_package=='viridis') {
-      colour_gradient <- scale_colour_viridis_c(option=picked_palette, direction=1, labels=get_labels, limits=input_feature_value_limits$limits, oob=squish)
+      colour_gradient <- scale_colour_viridis_c(option=picked_palette, direction=1, labels=get_labels, limits=limits, oob=squish)
     } else {
       colour_gradient <- scale_colour_gradient()
     }
 
-    data.frame(reduction_2d, feature_value=values, metadata) %>%
+    data.frame(reduction_coords, feature_value=values, metadata) %>%
       arrange(feature_value) %>%
-      filter(cell_filter %in% input_cell_filter()) %>%
+      filter(cell_filter %in% input_cell_filter) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=feature_value) +
-       labs(title=sprintf(fmt='%s in cells', isolate(selected_feature$name)), subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
-       geom_point(size=input_point_size()) +
+       labs(title=sprintf(fmt='%s in cells', feature_name), subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
+       geom_point(size=input_point_size) +
        colour_gradient +
        guides(color=guide_colourbar(label.position='bottom', frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2)) +
        theme_void() +
@@ -357,21 +395,20 @@ server <- function(input, output, session) {
 
   # ### 3D plotly
   output$feature_scatterplot_3d <- renderPlotly({
-    req(app_data$reduction_3d)
-    req(input_feature_value_limits$min)
-    req(input_feature_value_limits$max)
-    req(isolate(selected_feature$values))
-    req(isolate(selected_feature$name))
-    req(isolate(app_data$metadata))
-
-    if(is.null(selected_palette$package) || (input_feature_value_limits$min==0 && input_feature_value_limits$max==0))
-      return(NULL)
-
     log_message('making 3d feature scatterplot')
 
-    metadata <- isolate(app_data$metadata)
-    reduction_3d <- isolate(app_data$reduction_3d)
-    values <- isolate(selected_feature$values)
+    app_data <- app_data()
+    input_cell_filter <- input_cell_filter()
+    input_feature_value_limits <- input_feature_value_limits()
+    reduction_coords <- reduction_coords()
+    selected_feature <- isolate(selected_feature())
+    selected_palette <- selected_palette()
+
+    metadata <- app_data$metadata
+    reduction_coords %<>% pluck('d3')
+    values <- selected_feature$values
+    feature_name <- selected_feature$name
+    limits <- input_feature_value_limits$limits
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
     palette_direction <- selected_palette$direction
@@ -382,11 +419,11 @@ server <- function(input, output, session) {
       colour_gradient <- viridis_pal(option=picked_palette, direction=1)(32)
     }
  
-    data.frame(reduction_3d, feature_value=values, metadata) %>%
-      mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, selected_feature$name, feature_value)) %>%
-      mutate(feature_value=squish(x=feature_value, range=input_feature_value_limits$limits)) %>%
+    data.frame(reduction_coords, feature_value=values, metadata) %>%
+      mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, feature_name, feature_value)) %>%
+      mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(feature_value) %>%
-      filter(cell_filter %in% input_cell_filter()) %>%
+      filter(cell_filter %in% input_cell_filter) %>%
       plot_ly() %>%
       layout(paper_bgcolor=panel_background_rgb,
              showlegend=FALSE,
@@ -417,17 +454,17 @@ server <- function(input, output, session) {
   ## make cluster identity scatterplots
   ### 2D ggplot
   output$cluster_scatterplot <- renderPlot({
-    req(app_data$reduction_2d)
-    req(isolate(app_data$metadata))
-
     log_message('making 2d cluster scatterplot')
 
-    metadata <- isolate(app_data$metadata)
-    reduction_2d <- isolate(app_data$reduction_2d)
+    app_data <- app_data()
+    reduction_coords <- reduction_coords()
+
+    metadata <- app_data$metadata
+    reduction_coords %<>% pluck('d2')
     cell_colour_variable <- cluster_variable()
     n_clusters <- metadata %>% pluck(cell_colour_variable) %>% levels() %>% length()
 
-    data.frame(reduction_2d, metadata) %>%
+    data.frame(reduction_coords, metadata) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(.id) %>%
       # filter(cell_filter %in% input_cell_filter()) %>%
@@ -444,16 +481,16 @@ server <- function(input, output, session) {
 
   ### 3D plotly
   output$cluster_scatterplot_3d <- renderPlotly({
-    req(app_data$reduction_3d)
-    req(isolate(app_data$metadata))
-
     log_message('making 3d cluster scatterplot')
 
+    app_data <- app_data()
+    reduction_coords <- reduction_coords()
+
     metadata <- isolate(app_data$metadata)
-    reduction_3d <- isolate(app_data$reduction_3d)
+    reduction_coords %<>% pluck('d3')
     cell_colour_variable <- cluster_variable()
 
-    data.frame(reduction_3d, metadata) %>%
+    data.frame(reduction_coords, metadata) %>%
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s', cluster_id, group_id)) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(.id) %>%
@@ -485,14 +522,13 @@ server <- function(input, output, session) {
 
   ## make cluster/feature signal barplot
   output$grouped_feature_values_barplot <- renderPlot({
-    req(app_data$metadata)
-    req(selected_feature$values)
-    req(selected_feature$name)
+    log_message('making feature barplot')
+
+    app_data <- app_data()
+    selected_feature <- selected_feature()
 
     if(list(app_data$metadata, selected_feature$values) %>% sapply(nrow) %>% Reduce(f='!=')) # check that cbind will have equal row number
       return(NULL)
-
-    log_message('making feature barplot')
 
     metadata <- app_data$metadata
     feature_values <- selected_feature$values
