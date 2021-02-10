@@ -216,7 +216,7 @@ server <- function(input, output, session) {
 
     input_feature <- if_else(input_feature=='', initial_feature, input_feature)
 
-    sprintf('(selected_feature) reading feature [%s] from: %s {%s}', input_feature, h5_file, input$feature) %>% log_message()
+    sprintf('(selected_feature) reading feature [%s] from: %s', input_feature, h5_file) %>% log_message()
 
     h5_name <- input_feature %>% str_to_lower() %>% sprintf(fmt='features/values/%s')
     feature_values <- h5read(file=h5_file, name=h5_name)
@@ -321,7 +321,7 @@ server <- function(input, output, session) {
   ## make selected feature scatterplots
   ### 2D ggplot
   output$feature_scatterplot <- renderPlot({
-    
+    log_message('(output$feature_scatterplot) making 2d feature scatterplot')
     app_data <- app_data()
     input_cell_filter <- input_cell_filter()
     input_feature_value_limits <- input_feature_value_limits()
@@ -330,35 +330,16 @@ server <- function(input, output, session) {
     selected_feature <- isolate(selected_feature())
     selected_palette <- selected_palette()
 
-    log_message('making 2d feature scatterplot')
-
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
-    values <- selected_feature$values
+    feature_values <- selected_feature$values
     feature_name <- selected_feature$name
     limits <- input_feature_value_limits$limits
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
     palette_direction <- selected_palette$direction
 
-
-
-# print(head(metadata))
-# print(head(reduction_coords))
-# print(head(values))
-# print(feature_name)
-# print(limits)
-
-# print(digest::digest(metadata))
-# print(digest::digest(reduction_coords))
-# print(digest::digest(values))
-# print(digest::digest(feature_name))
-# print(digest::digest(limits))
-
-
-
-
-
+    feature_values %>% digest::digest() %>% sprintf(fmt='(output$feature_scatterplot) feature_values: %s') %>% log_message()
 
     get_labels <- function(x) {
       x %>% is.na() %>% not() %>% which() %>% range() -> idx
@@ -374,7 +355,7 @@ server <- function(input, output, session) {
       colour_gradient <- scale_colour_gradient()
     }
 
-    data.frame(reduction_coords, feature_value=values, metadata) %>%
+    data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
       arrange(feature_value) %>%
       filter(cell_filter %in% input_cell_filter) %>%
       {ggplot(data=.) +
@@ -395,7 +376,7 @@ server <- function(input, output, session) {
 
   # ### 3D plotly
   output$feature_scatterplot_3d <- renderPlotly({
-    log_message('making 3d feature scatterplot')
+    log_message('(output$feature_scatterplot_3d) making 3d feature scatterplot')
 
     app_data <- app_data()
     input_cell_filter <- input_cell_filter()
@@ -406,12 +387,14 @@ server <- function(input, output, session) {
 
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d3')
-    values <- selected_feature$values
+    feature_values <- selected_feature$values
     feature_name <- selected_feature$name
     limits <- input_feature_value_limits$limits
     palette_package <- selected_palette$package
     picked_palette <- selected_palette$name
     palette_direction <- selected_palette$direction
+
+    feature_values %>% digest::digest() %>% sprintf(fmt='(output$feature_scatterplot_3d) feature_values: %s') %>% log_message()
  
     if(palette_package=='brewer') {
       colour_gradient <- brewer_pal(palette=picked_palette, direction=palette_direction)(8)
@@ -419,7 +402,7 @@ server <- function(input, output, session) {
       colour_gradient <- viridis_pal(option=picked_palette, direction=1)(32)
     }
  
-    data.frame(reduction_coords, feature_value=values, metadata) %>%
+    data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, feature_name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(feature_value) %>%
@@ -454,7 +437,7 @@ server <- function(input, output, session) {
   ## make cluster identity scatterplots
   ### 2D ggplot
   output$cluster_scatterplot <- renderPlot({
-    log_message('making 2d cluster scatterplot')
+    log_message('(output$cluster_scatterplot) making 2d cluster scatterplot')
 
     app_data <- app_data()
     reduction_coords <- reduction_coords()
@@ -481,7 +464,7 @@ server <- function(input, output, session) {
 
   ### 3D plotly
   output$cluster_scatterplot_3d <- renderPlotly({
-    log_message('making 3d cluster scatterplot')
+    log_message('(output$cluster_scatterplot_3d) making 3d cluster scatterplot')
 
     app_data <- app_data()
     reduction_coords <- reduction_coords()
@@ -522,7 +505,7 @@ server <- function(input, output, session) {
 
   ## make cluster/feature signal barplot
   output$grouped_feature_values_barplot <- renderPlot({
-    log_message('making feature barplot')
+    log_message('(output$grouped_feature_values_barplot) making feature barplot')
 
     app_data <- app_data()
     selected_feature <- selected_feature()
@@ -536,6 +519,8 @@ server <- function(input, output, session) {
     palette_package <- 'brewer'
     picked_palette <- 'YlOrRd'
     palette_direction <- 1
+
+    feature_values %>% digest::digest() %>% sprintf(fmt='(output$grouped_feature_values_barplot) values: %s') %>% log_message()
     
     if(palette_package=='brewer') {
       fill_gradient <- scale_fill_distiller(palette=picked_palette, direction=palette_direction)
@@ -557,19 +542,27 @@ server <- function(input, output, session) {
                 median_value=median(feature_value),
                 from_value=quantile(feature_value, 0.25),
                 to_value=quantile(feature_value, 0.75)) %>%
-      filter(group_id!='NULL' & !str_detect(group_id, 'Null')) %>%
       mutate(group_id=fct_relevel(group_id, rev)) %>%
       ggplot() +
-      aes(x=group_id, fill=mean_value, colour=group_id) +
-      labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', feature_name),
-           fill=sprintf(fmt='Mean signal', feature_name),
-           size='Reported by\ncells in group', colour='Cell type',
-           title=sprintf(fmt='%s in cell groups', feature_name)) +
-      geom_linerange(mapping=aes(ymin=from_value, ymax=to_value), size=1.4, colour='grey30') +
-      geom_point(mapping=aes(y=median_value, size=expressing_cells/cells_in_group*100), shape=21, colour='grey0', stroke=1) +
-      scale_x_discrete() +
-      scale_y_continuous() +
-      scale_size_continuous(labels=function(l) str_c(l, '%'), range=c(2,8)) +
+
+      # aes(x=group_id, fill=mean_value, colour=group_id) +
+      # labs(x='Cell types', y=sprintf(fmt='Median %s signal ± quartile', feature_name),
+      #      fill=sprintf(fmt='Mean signal', feature_name),
+      #      size='Reported by\ncells in group', colour='Cell type',
+      #      title=sprintf(fmt='%s in cell groups', feature_name)) +
+      # geom_linerange(mapping=aes(ymin=from_value, ymax=to_value), size=1.4, colour='grey30') +
+      # geom_point(mapping=aes(y=median_value, size=expressing_cells/cells_in_group*100), shape=21, colour='grey0', stroke=1) +
+
+      aes(x=group_id, y=expressing_cells/cells_in_group*100, fill=mean_value) +
+      labs(x='Cell types',
+           y='Detected in cells within type',
+           fill=sprintf(fmt='%s\n(mean)', feature_name),
+           title=sprintf(fmt='%s in cell type', feature_name)) +
+      geom_point(shape=21, colour='grey0', stroke=1, size=5) +
+
+      scale_x_discrete(drop=FALSE) +
+      scale_y_continuous(labels=function(y) str_c(y, '%')) +
+      # scale_size_continuous(labels=function(l) str_c(l, '%'), range=c(2,8)) +
       fill_gradient +
       coord_flip() +
       guides(colour='none', 
