@@ -1,21 +1,33 @@
-title: SC19022
+title: Single cell transcriptome atlases of the developing mouse and human spinal cord
 initial_feature: SOX2
 datasets:
   Human:
-    Contaminant-free:
-      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/human.h5
-    Neural:
-      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/human_neural.h5
-    Peripheral neural:
-      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/human_peripheral.h5
-    Progenitors:
-      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/human_progenitors.h5
+    config:
+      initial_feature: SOX2
+    All cells:
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/human.h5
+    CNS:
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_neural.h5
+    CNS progenitors:
+      config:
+        initial_feature: OLIG2
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_progenitor.h5
+    CNS neurons:
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_neuron.h5
+    PNS:
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_peripheral.h5
   Mouse:
     config:
       initial_feature: Sox2
-    Contaminant-free:
-      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/mouse.h5
-    Neural:
-      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/mouse_neural.h5
-    Peripheral neural:
-      file: /Users/chris/projects/briscoej/teresa.rayon/015_SC19022_Single_cell_transcriptomic_atlas_of_the_developing_human_spinal_chord/scviewer/data/mouse_peripheral.h5
+    All cells:
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse.h5
+    CNS:
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_neural.h5
+    CNS progenitors:
+      config:
+        initial_feature: Olig2
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_progenitor.h5
+    CNS neurons:
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_neuron.h5
+    PNS:
+      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_peripheral.h5
