@@ -26,7 +26,7 @@ library(magrittr)
 library(tidyverse)
 
 if(packageVersion('dqshiny') < '0.0.5')
-    stop('!!! dqshiny version 0.0.5 is required')
+    packageVersion('dqshiny') %>% sprintf(fmt='!!! dqshiny version 0.0.5 is required but %s was loaded!') %>% stop()
 
 message('/// ----- ----- ----- ----- -----')
 str_c('/// started at:', date(), sep=' ') %>% message()
