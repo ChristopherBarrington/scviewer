@@ -71,7 +71,7 @@ dashboardSidebar(disable=FALSE,
                  autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
                  sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
                  selectInput(inputId='reduction_method', label='Dimension reduction method', choices=list(PCA='pca', UMAP='umap', tSNE='tsne'), selected='umap'),
-                 prettyCheckboxGroup(inputId='cell_filter', label='Cell filter', choices=NULL, selected=NULL),
+                 prettyCheckboxGroup(inputId='cell_filter', label='Cell filter', choices='No filtering', selected='No filtering'),
                  {list(`Brewer [sequential]`=list(`brewer:Blues:f`=brewer_pal(palette='Blues', direction=1)(8),
                                                   `brewer:BuPu:f`=brewer_pal(palette='BuPu', direction=1)(8),
                                                   `brewer:GnBu:f`=brewer_pal(palette='GnBu', direction=1)(8),
@@ -130,7 +130,7 @@ server <- function(input, output, session) {
       unite(index, L2, L3, sep='$') %>%
       spread(key=index, value=value) %>%
       rename_at(vars(matches('^NA\\$NA$')), function(x) 'default') %>%
-      set_names(str_remove, pattern='\\$config') %>%
+      purrr::set_names(str_remove, pattern='\\$config') %>%
       mutate_all(as.character)
 
   get_prioritised_value <- function(values, priority)
@@ -156,9 +156,9 @@ server <- function(input, output, session) {
 
     #### parse dropdown key to give levels 1 and 2 from the datasets key of the yaml config
     input_dataset_key %>%
-      str_split('\\$') %>%
-      pluck(1) %>%
-      set_names('L1','L2') %>%
+      stringr::str_split('\\$') %>%
+      purrr::pluck(1) %>%
+      purrr::set_names('L1','L2') %>%
       as.list() -> dataset_selection
 
     #### get the h5 file from the config file
@@ -184,6 +184,8 @@ server <- function(input, output, session) {
 
     #### load metadata table
     metadata_list <- h5read(file=h5_file, name='metadata')
+    if(is.null(metadata_list$data$cell_filter))
+      metadata_list$data %<>% add_column(cell_filter=factor('No filtering'))
 
     ##### for each would-be-factor variable in metadata$data, update the factor levels using metadata$factor_levels
     for(i in names(metadata_list$factor_levels))
@@ -204,6 +206,7 @@ server <- function(input, output, session) {
     metadata_list$data %>%
       pluck('cell_filter') %>%
       levels() %>%
+      replace(is.null(.), 'no filtering') %>%
       updatePrettyCheckboxGroup(session=session, inputId='cell_filter',
                                 choices=., selected=.,
                                 prettyOptions=list(icon=icon('check-square-o'), status='primary',
@@ -281,7 +284,7 @@ server <- function(input, output, session) {
     name_3d <- str_c(reduction_method, '_3d')
 
     reductions[c(name_2d, name_3d)] %>%
-      set_names(c('d2','d3'))}) -> reduction_coords
+      purrr::set_names(c('d2','d3'))}) -> reduction_coords
 
   ### collect the point size and reduce reactivity
   reactive(x={
@@ -299,7 +302,7 @@ server <- function(input, output, session) {
       str_split(pattern=':') %>%
       pluck(1) %>%
       as.list() %>%
-      set_names(c('package', 'name', 'type')) %>%
+      purrr::set_names(c('package', 'name', 'type')) %>%
       append(list(direction={.$type %>% switch(f=1, r=-1)}))}) -> selected_palette
 
   ### (pretend to) collect the variable by which cell clusters are coloured
@@ -408,7 +411,7 @@ server <- function(input, output, session) {
     palette_direction <- selected_palette$direction
 
     feature_values %>% digest::digest() %>% sprintf(fmt='(output$feature_scatterplot_3d) feature_values: %s') %>% log_message()
- 
+
     if(palette_package=='brewer') {
       colour_gradient <- brewer_pal(palette=picked_palette, direction=palette_direction)(8)
     } else if(palette_package=='viridis') {
