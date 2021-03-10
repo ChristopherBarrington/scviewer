@@ -43,7 +43,7 @@ map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file') %>%
   plyr::ldply(function(x) data.frame(name=names(x))) %>%
   unite('key', .id, name, sep='$', remove=FALSE) %>%
   mutate_if(is.factor, as.character) %>%
-  plyr::dlply(~.id, select, -.id) %>%
+  plyr::dlply(~.id, select, name, key) %>%
   plyr::llply(deframe) -> dataset_choices
 
 # define the UI
