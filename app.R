@@ -52,7 +52,7 @@ dashboardHeader(disable=FALSE,
                 title=app_config$title,
                 titleWidth='1000px',
                 tags$li(a(onclick='history.go(-1); return false;', href=NULL,
-                          icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer;'),
+                          icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer; font-size: larger;'),
                         class='dropdown')) -> ui_header
 
 ## sidebar
