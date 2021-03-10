@@ -52,7 +52,7 @@ dashboardHeader(disable=FALSE,
                 title=app_config$title,
                 titleWidth='1000px',
                 tags$li(a(onclick='history.go(-1); return false;', href=NULL,
-                          icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer; font-size: larger;'),
+                          icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer'),
                         class='dropdown')) -> ui_header
 
 ## sidebar
@@ -68,7 +68,7 @@ dashboardSidebar(disable=FALSE,
                  tags$style(type='text/css', '.sidebar-toggle {visibility: hidden !important;}'),
                  tags$style(type='text/css', '.main-header .logo {text-align:left !important; background: #455a64 !important; color: rgba(255, 255, 255, 0.8) !important}'),
                  tags$style(type='text/css', '.navbar {background: #455a64 !important; box-shadow: none !important}'),
-                 tags$style(type='text/css', 'i.fa.fa-home {color: rgba(255, 255, 255, 0.8) !important}'),
+                 tags$style(type='text/css', 'i.fa.fa-home {color: rgba(255, 255, 255, 0.8) !important; font-size: larger !important;}'),
                  tags$style(type='text/css', '.irs-grid-text {visibility: hidden !important;}'),
                  tags$style(type='text/css', '.autocomplete-items div:hover {background-color: #DDDDDD;}'),
                 tags$head(tags$link(rel='shortcut icon', href='https://www.crick.ac.uk/themes/custom/crick/favicons/favicon.ico')),
