@@ -50,7 +50,10 @@ map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file') %>%
 ## header
 dashboardHeader(disable=FALSE,
                 title=app_config$title,
-                titleWidth='1000px') -> ui_header
+                titleWidth='1000px',
+                tags$li(a(onclick='history.go(-1); return false;', href=NULL,
+                          icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer;'),
+                        class='dropdown')) -> ui_header
 
 ## sidebar
 dashboardSidebar(disable=FALSE,
