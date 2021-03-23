@@ -471,6 +471,10 @@ server <- function(input, output, session) {
     cell_colour_variable <- cluster_variable()
     n_clusters <- metadata %>% pluck(cell_colour_variable) %>% levels() %>% length()
 
+    colour_scale <- scale_colour_brewer(palette='Dark2')
+    if(n_clusters>8)
+      colour_scale <- scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Dark2'))(n_clusters)})
+
     data.frame(reduction_coords, metadata) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(.id) %>%
@@ -479,7 +483,7 @@ server <- function(input, output, session) {
        aes(x=x, y=y, colour=.id) +
        labs(title='Cell clusters', subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
        geom_point(size=input_point_size()) +
-       scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Set2'))(n_clusters)}) +
+       colour_scale +
        theme_void() +
        theme(aspect.ratio=1,
              legend.position='none',
