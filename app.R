@@ -42,18 +42,13 @@ map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file') %>%
   map_depth(.depth=1, function(x) x[names(x)!='config']) %>%
   plyr::ldply(function(x) data.frame(name=names(x))) %>%
   unite('key', .id, name, sep='$', remove=FALSE) %>%
-  mutate_if(is.factor, as.character) %>%
-  plyr::dlply(~.id, select, name, key) %>%
-  plyr::llply(deframe) -> dataset_choices
+  plyr::dlply(~.id, plyr::dlply, ~name, pluck, 'key') -> dataset_choices
 
 # define the UI
 ## header
 dashboardHeader(disable=FALSE,
                 title=app_config$title,
-                titleWidth='1000px',
-                tags$li(a(onclick='history.go(-1); return false;', href=NULL,
-                          icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer'),
-                        class='dropdown')) -> ui_header
+                titleWidth='1000px') -> ui_header
 
 ## sidebar
 dashboardSidebar(disable=FALSE,
@@ -66,13 +61,9 @@ dashboardSidebar(disable=FALSE,
                    var msg = '--- shiny:idle: ' + currentdate.getHours().toString().padStart(2, '0') + ':' + currentdate.getMinutes().toString().padStart(2, '0') + ':' + currentdate.getSeconds().toString().padStart(2, '0');
                    console.log(msg);});"),
                  tags$style(type='text/css', '.sidebar-toggle {visibility: hidden !important;}'),
-                 tags$style(type='text/css', '.main-header .logo {text-align:left !important; background: #455a64 !important; color: rgba(255, 255, 255, 0.8) !important}'),
-                 tags$style(type='text/css', '.main-header .logo:hover {color: white !important}'),
-                 tags$style(type='text/css', '.navbar {background: #455a64 !important; box-shadow: none !important}'),
-                 tags$style(type='text/css', 'i.fa.fa-home {color: rgba(255, 255, 255, 0.8) !important; font-size: larger !important;}'),
+                 tags$style(type='text/css', '.main-header .logo {text-align:left !important;}'),
                  tags$style(type='text/css', '.irs-grid-text {visibility: hidden !important;}'),
                  tags$style(type='text/css', '.autocomplete-items div:hover {background-color: #DDDDDD;}'),
-                 tags$head(tags$link(rel='shortcut icon', href='https://www.crick.ac.uk/themes/custom/crick/favicons/favicon.ico')),
                  selectizeInput(inputId='filename',
                                 label='Select a dataset',
                                 choices=dataset_choices,
@@ -80,7 +71,21 @@ dashboardSidebar(disable=FALSE,
                  autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
                  sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
                  selectInput(inputId='reduction_method', label='Dimension reduction method', choices=list(PCA='pca', UMAP='umap', tSNE='tsne'), selected='umap'),
-                 prettyCheckboxGroup(inputId='cell_filter', label='Cell filter', choices='No filtering', selected='No filtering'),
+                 prettyCheckboxGroup(inputId='cell_filter_timepoint', label='Time point filter', choices=NULL, selected=NULL),
+                 pickerInput(inputId='cell_filter_cluster_id', label='Cell type filter', choices=NULL, selected=NULL, options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>3'), multiple=TRUE),
+                 # pickerInput(inputId='cell_filter_cluster_id', label='Cell type filter', 
+                 #             choices=c('pD', 'FP', 'pI', 'p3', 'pMN', 'RP', 'CNS progenitor',
+                 #                       'dI', 'MN', 'V0', 'V1', 'V2a', 'V2b', 'V3', 'CNS neuron',
+                 #                       'Oligodendrocyte',
+                 #                       'PNS progenitor', 'PNS neuron',
+                 #                       'Mesoderm', 'Skin', 'Blood', 'Other'),
+                 #             selected=c('pD', 'FP', 'pI', 'p3', 'pMN', 'RP', 'CNS progenitor',
+                 #                       'dI', 'MN', 'V0', 'V1', 'V2a', 'V2b', 'V3', 'CNS neuron',
+                 #                       'Oligodendrocyte',
+                 #                       'PNS progenitor', 'PNS neuron',
+                 #                       'Mesoderm', 'Skin', 'Blood', 'Other'),
+                 #             options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>3'),
+                 #             multiple=TRUE),
                  {list(`Brewer [sequential]`=list(`brewer:Blues:f`=brewer_pal(palette='Blues', direction=1)(8),
                                                   `brewer:BuPu:f`=brewer_pal(palette='BuPu', direction=1)(8),
                                                   `brewer:GnBu:f`=brewer_pal(palette='GnBu', direction=1)(8),
@@ -139,7 +144,7 @@ server <- function(input, output, session) {
       unite(index, L2, L3, sep='$') %>%
       spread(key=index, value=value) %>%
       rename_at(vars(matches('^NA\\$NA$')), function(x) 'default') %>%
-      purrr::set_names(str_remove, pattern='\\$config') %>%
+      set_names(str_remove, pattern='\\$config') %>%
       mutate_all(as.character)
 
   get_prioritised_value <- function(values, priority)
@@ -165,9 +170,9 @@ server <- function(input, output, session) {
 
     #### parse dropdown key to give levels 1 and 2 from the datasets key of the yaml config
     input_dataset_key %>%
-      stringr::str_split('\\$') %>%
-      purrr::pluck(1) %>%
-      purrr::set_names('L1','L2') %>%
+      str_split('\\$') %>%
+      pluck(1) %>%
+      set_names('L1','L2') %>%
       as.list() -> dataset_selection
 
     #### get the h5 file from the config file
@@ -193,8 +198,6 @@ server <- function(input, output, session) {
 
     #### load metadata table
     metadata_list <- h5read(file=h5_file, name='metadata')
-    if(is.null(metadata_list$data$cell_filter))
-      metadata_list$data %<>% add_column(cell_filter=factor('No filtering'))
 
     ##### for each would-be-factor variable in metadata$data, update the factor levels using metadata$factor_levels
     for(i in names(metadata_list$factor_levels))
@@ -215,11 +218,16 @@ server <- function(input, output, session) {
     metadata_list$data %>%
       pluck('cell_filter') %>%
       levels() %>%
-      replace(is.null(.), 'no filtering') %>%
-      updatePrettyCheckboxGroup(session=session, inputId='cell_filter',
+      updatePrettyCheckboxGroup(session=session, inputId='cell_filter_timepoint',
                                 choices=., selected=.,
                                 prettyOptions=list(icon=icon('check-square-o'), status='primary',
                                                    outline=TRUE, animation='jelly', bigger=TRUE, inline=TRUE))
+
+    metadata_list$data %>%
+      pluck('cluster_id') %>%
+      levels() %>%
+      updatePickerInput(session=session, inputId='cell_filter_cluster_id',
+                        choices=., selected=.)
 
     #### add to reactive values list
     list(initial_feature=initial_feature,
@@ -293,7 +301,7 @@ server <- function(input, output, session) {
     name_3d <- str_c(reduction_method, '_3d')
 
     reductions[c(name_2d, name_3d)] %>%
-      purrr::set_names(c('d2','d3'))}) -> reduction_coords
+      set_names(c('d2','d3'))}) -> reduction_coords
 
   ### collect the point size and reduce reactivity
   reactive(x={
@@ -311,7 +319,7 @@ server <- function(input, output, session) {
       str_split(pattern=':') %>%
       pluck(1) %>%
       as.list() %>%
-      purrr::set_names(c('package', 'name', 'type')) %>%
+      set_names(c('package', 'name', 'type')) %>%
       append(list(direction={.$type %>% switch(f=1, r=-1)}))}) -> selected_palette
 
   ### (pretend to) collect the variable by which cell clusters are coloured
@@ -319,11 +327,18 @@ server <- function(input, output, session) {
 
   ### collect the cell filtering values
   reactive(x={
-    req(input$cell_filter)
+    req(input$cell_filter_timepoint)
 
-    input$cell_filter %T>%
-      (. %>% str_c(collapse=', ') %>% sprintf(fmt='(input_cell_filter) set cell_filter to [%s]') %>% log_message())}) %>%
-    debounce(500) -> input_cell_filter
+    input$cell_filter_timepoint %T>%
+      (. %>% str_c(collapse=', ') %>% sprintf(fmt='(input_filter_cell_filter) set cell_filter_timepoint to [%s]') %>% log_message())}) %>%
+    debounce(500) -> input_filter_cell_filter
+
+reactive(x={
+    req(input$cell_filter_cluster_id)
+
+    input$cell_filter_cluster_id %T>%
+      (. %>% str_c(collapse=', ') %>% sprintf(fmt='(input_cell_filter_cluster_id) set cell_filter_cluster_id to [%s]') %>% log_message())}) %>%
+    debounce(500) -> input_cell_filter_cluster_id
 
   ## on startup, show reminder to load a dataset
   sendSweetAlert(
@@ -347,7 +362,8 @@ server <- function(input, output, session) {
   output$feature_scatterplot <- renderPlot({
     log_message('(output$feature_scatterplot) making 2d feature scatterplot')
     app_data <- app_data()
-    input_cell_filter <- input_cell_filter()
+    input_filter_cell_filter <- input_filter_cell_filter()
+    input_cell_filter_cluster_id <- input_cell_filter_cluster_id()
     input_feature_value_limits <- input_feature_value_limits()
     input_point_size <- input_point_size()
     reduction_coords <- reduction_coords()
@@ -381,7 +397,7 @@ server <- function(input, output, session) {
 
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
       arrange(feature_value) %>%
-      filter(cell_filter %in% input_cell_filter) %>%
+      filter(cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=feature_value) +
        labs(title=sprintf(fmt='%s in cells', feature_name), subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
@@ -404,7 +420,8 @@ server <- function(input, output, session) {
     log_message('(output$feature_scatterplot_3d) making 3d feature scatterplot')
 
     app_data <- app_data()
-    input_cell_filter <- input_cell_filter()
+    input_filter_cell_filter <- input_filter_cell_filter()
+    input_cell_filter_cluster_id <- input_cell_filter_cluster_id()
     input_feature_value_limits <- input_feature_value_limits()
     reduction_coords <- reduction_coords()
     selected_feature <- isolate(selected_feature())
@@ -420,7 +437,7 @@ server <- function(input, output, session) {
     palette_direction <- selected_palette$direction
 
     feature_values %>% digest::digest() %>% sprintf(fmt='(output$feature_scatterplot_3d) feature_values: %s') %>% log_message()
-
+ 
     if(palette_package=='brewer') {
       colour_gradient <- brewer_pal(palette=picked_palette, direction=palette_direction)(8)
     } else if(palette_package=='viridis') {
@@ -431,7 +448,7 @@ server <- function(input, output, session) {
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, feature_name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(feature_value) %>%
-      filter(cell_filter %in% input_cell_filter) %>%
+      filter(cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
       plot_ly() %>%
       layout(paper_bgcolor=panel_background_rgb,
              showlegend=FALSE,
@@ -466,6 +483,8 @@ server <- function(input, output, session) {
 
     app_data <- app_data()
     reduction_coords <- reduction_coords()
+    input_filter_cell_filter <- input_filter_cell_filter()
+    input_cell_filter_cluster_id <- input_cell_filter_cluster_id()
 
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
@@ -477,17 +496,19 @@ server <- function(input, output, session) {
       colour_scale <- scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Dark2'))(n_clusters)})
 
     data.frame(reduction_coords, metadata) %>%
+      filter(cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(.id) %>%
-      # filter(cell_filter %in% input_cell_filter()) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=.id) +
        labs(title='Cell clusters', subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
        geom_point(size=input_point_size()) +
+       guides(colour=guide_legend(override.aes=list(size=2))) +
        colour_scale +
        theme_void() +
        theme(aspect.ratio=1,
              legend.position='none',
+             legend.title=element_blank(),
              panel.background=element_rect(fill=panel_background_rgb, colour=NA),
              panel.border=element_rect(fill=NA, colour=NA),
              text=element_text(size=14))}}, bg='transparent')
@@ -498,16 +519,18 @@ server <- function(input, output, session) {
 
     app_data <- app_data()
     reduction_coords <- reduction_coords()
+    input_filter_cell_filter <- input_filter_cell_filter()
+    input_cell_filter_cluster_id <- input_cell_filter_cluster_id()
 
     metadata <- isolate(app_data$metadata)
     reduction_coords %<>% pluck('d3')
     cell_colour_variable <- cluster_variable()
 
     data.frame(reduction_coords, metadata) %>%
+      filter(cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s', cluster_id, group_id)) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(.id) %>%
-      # filter(cell_filter %in% input_cell_filter()) %>%
       plot_ly() %>%
       layout(paper_bgcolor=panel_background_rgb,
              showlegend=FALSE,
@@ -526,7 +549,7 @@ server <- function(input, output, session) {
              modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
              displayModeBar=TRUE) %>%
       add_markers(x=~x, y=~y, z=~z,
-                  color=~.id, colors='Set2',
+                  color=~.id, colors='Dark2',
                   text=~text,
                   marker=list(symbol='circle-dot',
                               size=input_point_size()*2,
