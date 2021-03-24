@@ -111,7 +111,7 @@ dashboardSidebar(disable=FALSE,
                                                  `brewer:BrBG:r`=brewer_pal(palette='BrBG', direction=-1)(8),
                                                  `brewer:Spectral:r`=brewer_pal(palette='Spectral', direction=-1)(8))) %>%
                  palettePicker(inputId='predefined_palette', label='Colour palette', 
-                               selected='brewer:YlGnBu:f', textColor=rgb(red=0, green=0, blue=0, alpha=0),
+                               selected='viridis:plasma:f', textColor=rgb(red=0, green=0, blue=0, alpha=0),
                                pickerOpts=list(`live-search`=FALSE, size=10))},
                  sliderInput(inputId='point_size', label='Size of cells', min=0.3, max=1.5, step=0.05, value=1.0)) -> ui_sidebar
 
