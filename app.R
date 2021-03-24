@@ -489,8 +489,7 @@ reactive(x={
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
     cell_colour_variable <- cluster_variable()
-    n_clusters <- metadata %>% pluck(cell_colour_variable) %>% levels() %>% length()
-
+   
     cluster_idents <- metadata %>% pluck(cell_colour_variable) %>% levels()
     n_clusters <- cluster_idents %>% length()
 
