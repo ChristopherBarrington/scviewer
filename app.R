@@ -71,21 +71,8 @@ dashboardSidebar(disable=FALSE,
                  autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
                  sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
                  selectInput(inputId='reduction_method', label='Dimension reduction method', choices=list(PCA='pca', UMAP='umap', tSNE='tsne'), selected='umap'),
-                 prettyCheckboxGroup(inputId='cell_filter_timepoint', label='Time point filter', choices=NULL, selected=NULL),
-                 pickerInput(inputId='cell_filter_cluster_id', label='Cell type filter', choices=NULL, selected=NULL, options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>3'), multiple=TRUE),
-                 # pickerInput(inputId='cell_filter_cluster_id', label='Cell type filter', 
-                 #             choices=c('pD', 'FP', 'pI', 'p3', 'pMN', 'RP', 'CNS progenitor',
-                 #                       'dI', 'MN', 'V0', 'V1', 'V2a', 'V2b', 'V3', 'CNS neuron',
-                 #                       'Oligodendrocyte',
-                 #                       'PNS progenitor', 'PNS neuron',
-                 #                       'Mesoderm', 'Skin', 'Blood', 'Other'),
-                 #             selected=c('pD', 'FP', 'pI', 'p3', 'pMN', 'RP', 'CNS progenitor',
-                 #                       'dI', 'MN', 'V0', 'V1', 'V2a', 'V2b', 'V3', 'CNS neuron',
-                 #                       'Oligodendrocyte',
-                 #                       'PNS progenitor', 'PNS neuron',
-                 #                       'Mesoderm', 'Skin', 'Blood', 'Other'),
-                 #             options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>3'),
-                 #             multiple=TRUE),
+                 pickerInput(inputId='cell_filter_timepoint', label='Time point filter', choices=NULL, selected=NULL, options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>1'), multiple=TRUE),
+                 pickerInput(inputId='cell_filter_cluster_id', label='Cell type filter', choices=NULL, selected=NULL, options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>1'), multiple=TRUE),
                  {list(`Brewer [sequential]`=list(`brewer:Blues:f`=brewer_pal(palette='Blues', direction=1)(8),
                                                   `brewer:BuPu:f`=brewer_pal(palette='BuPu', direction=1)(8),
                                                   `brewer:GnBu:f`=brewer_pal(palette='GnBu', direction=1)(8),
@@ -218,10 +205,8 @@ server <- function(input, output, session) {
     metadata_list$data %>%
       pluck('cell_filter') %>%
       levels() %>%
-      updatePrettyCheckboxGroup(session=session, inputId='cell_filter_timepoint',
-                                choices=., selected=.,
-                                prettyOptions=list(icon=icon('check-square-o'), status='primary',
-                                                   outline=TRUE, animation='jelly', bigger=TRUE, inline=TRUE))
+      updatePickerInput(session=session, inputId='cell_filter_timepoint',
+                        choices=., selected=.)
 
     metadata_list$data %>%
       pluck('cluster_id') %>%
