@@ -491,9 +491,14 @@ reactive(x={
     cell_colour_variable <- cluster_variable()
     n_clusters <- metadata %>% pluck(cell_colour_variable) %>% levels() %>% length()
 
-    colour_scale <- scale_colour_brewer(palette='Dark2')
-    if(n_clusters>8)
-      colour_scale <- scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Dark2'))(n_clusters)})
+    cluster_idents <- metadata %>% pluck(cell_colour_variable) %>% levels()
+    n_clusters <- cluster_idents %>% length()
+
+    # make a colour scale to match the plotly 3D version
+    colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8,n_clusters)) %>%
+      head(n=n_clusters) %>%
+      set_names(cluster_idents) %>%
+      magrittr::extract(., input_cell_filter_cluster_id) -> colour_scale_values
 
     data.frame(reduction_coords, metadata) %>%
       filter(cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
@@ -504,7 +509,7 @@ reactive(x={
        labs(title='Cell clusters', subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
        geom_point(size=input_point_size()) +
        guides(colour=guide_legend(override.aes=list(size=2))) +
-       colour_scale +
+       scale_colour_manual(values=colour_scale_values) +
        theme_void() +
        theme(aspect.ratio=1,
              legend.position='none',
