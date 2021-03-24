@@ -505,7 +505,7 @@ reactive(x={
       arrange(is_selected, .id) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=.id, alpha=is_selected) +
-       labs(title='Cell clusters', subtitle=sprintf(fmt='n=%s, N=%s', {sum(.$is_selected) %>% comma()}, {nrow(.) %>% comma()})) +
+       labs(title='Cell types', subtitle=sprintf(fmt='n=%s, N=%s', {sum(.$is_selected) %>% comma()}, {nrow(.) %>% comma()})) +
        geom_point(size=input_point_size) +
        guides(colour=guide_legend(override.aes=list(size=2))) +
        scale_colour_manual(values=colour_scale_values) +
