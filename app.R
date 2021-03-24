@@ -434,7 +434,7 @@ reactive(x={
  
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
       mutate(is_selected=cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
-      mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, feature_name, feature_value)) %>%
+      mutate(text=sprintf(fmt='Cell type: %s\nPopulation: %s\n%s: %.2f', cluster_id, group_id, feature_name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(is_selected, feature_value) %>%
       (function(input_data)
@@ -534,7 +534,7 @@ reactive(x={
 
     data.frame(reduction_coords, metadata) %>%
       mutate(is_selected=cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
-      mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s', cluster_id, group_id)) %>%
+      mutate(text=sprintf(fmt='Cell type: %s\nPopulation: %s', cluster_id, group_id)) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(is_selected, .id) %>%
       (function(input_data)
