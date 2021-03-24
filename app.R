@@ -470,11 +470,15 @@ server <- function(input, output, session) {
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
     cell_colour_variable <- cluster_variable()
-    n_clusters <- metadata %>% pluck(cell_colour_variable) %>% levels() %>% length()
 
-    colour_scale <- scale_colour_brewer(palette='Dark2')
-    if(n_clusters>8)
-      colour_scale <- scale_colour_manual(values={colorRampPalette(brewer.pal(n=8, name='Dark2'))(n_clusters)})
+    cluster_idents <- metadata %>% pluck(cell_colour_variable) %>% levels()
+    n_clusters <- cluster_idents %>% length()
+
+    # make a colour scale to match the plotly 3D version
+    colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8,n_clusters)) %>%
+      head(n=n_clusters) %>%
+      set_names(cluster_idents) %>%
+      magrittr::extract(., input_cell_filter_cluster_id) -> colour_scale_values
 
     data.frame(reduction_coords, metadata) %>%
       rename(.id=cell_colour_variable) %>%
@@ -484,10 +488,12 @@ server <- function(input, output, session) {
        aes(x=x, y=y, colour=.id) +
        labs(title='Cell clusters', subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
        geom_point(size=input_point_size()) +
-       colour_scale +
+       guides(colour=guide_legend(override.aes=list(size=2))) +
+       scale_colour_manual(values=colour_scale_values) +
        theme_void() +
        theme(aspect.ratio=1,
              legend.position='none',
+             legend.title=element_blank(),
              panel.background=element_rect(fill=panel_background_rgb, colour=NA),
              panel.border=element_rect(fill=NA, colour=NA),
              text=element_text(size=14))}}, bg='transparent')
