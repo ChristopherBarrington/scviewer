@@ -5,29 +5,29 @@ datasets:
     config:
       initial_feature: SOX2
     All cells:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human.h5
+      file: data/human.h5
     CNS:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_neural.h5
+      file: data/human_neural.h5
     CNS progenitors:
       config:
         initial_feature: OLIG2
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_progenitor.h5
+      file: data/human_progenitor.h5
     CNS neurons:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_neuron.h5
+      file: data/human_neuron.h5
     PNS:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_peripheral.h5
+      file: data/human_peripheral.h5
   Mouse:
     config:
       initial_feature: Sox2
     All cells:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse.h5
+      file: data/mouse.h5
     CNS:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_neural.h5
+      file: data/mouse_neural.h5
     CNS progenitors:
       config:
         initial_feature: Olig2
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_progenitor.h5
+      file: data/mouse_progenitor.h5
     CNS neurons:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_neuron.h5
+      file: data/mouse_neuron.h5
     PNS:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_peripheral.h5
+      file: data/mouse_peripheral.h5
