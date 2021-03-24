@@ -396,14 +396,16 @@ reactive(x={
     }
 
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
-      arrange(feature_value) %>%
-      filter(cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
+      mutate(is_selected=cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
+      arrange(is_selected, feature_value) %>%
       {ggplot(data=.) +
-       aes(x=x, y=y, colour=feature_value) +
-       labs(title=sprintf(fmt='%s in cells', feature_name), subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
+       aes(x=x, y=y, colour=feature_value, alpha=is_selected) +
+       labs(title=sprintf(fmt='%s in cells', feature_name), subtitle=sprintf(fmt='n=%s, N=%s', {sum(.$is_selected) %>% comma()}, {nrow(.) %>% comma()})) +
        geom_point(size=input_point_size) +
        colour_gradient +
-       guides(color=guide_colourbar(label.position='bottom', frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2)) +
+       scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=0.05)) +
+       guides(color=guide_colourbar(label.position='bottom', frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2),
+              alpha=FALSE) +
        theme_void() +
        theme(aspect.ratio=1,
              legend.box.margin=margin(r=10, b=10, t=0, l=0),
@@ -426,6 +428,7 @@ reactive(x={
     reduction_coords <- reduction_coords()
     selected_feature <- isolate(selected_feature())
     selected_palette <- selected_palette()
+    input_point_size <- input_point_size()
 
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d3')
@@ -445,36 +448,48 @@ reactive(x={
     }
  
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
+      mutate(is_selected=cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, feature_name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
-      arrange(feature_value) %>%
-      filter(cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
-      plot_ly() %>%
-      layout(paper_bgcolor=panel_background_rgb,
-             showlegend=FALSE,
-             scene=list(xaxis=list(visible=FALSE),
-                        yaxis=list(visible=FALSE),
-                        zaxis=list(visible=FALSE)),
-             modebar=list(orientation='v',
-                          activecolor=plotly_config$modebar$activecolor,
-                          color=plotly_config$modebar$color,
-                          bgcolor=plotly_config$modebar$bgcolor),
-             legend=list(orientation='h',
-                         xanchor='center',
-                         x=0.5),
-             hoverlabel=list(bgcolor='white')) %>%
-      config(scrollZoom=FALSE,
-             displaylogo=FALSE,
-             modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
-             displayModeBar=TRUE) %>%
-      add_markers(x=~x, y=~y, z=~z,
-                  color=~feature_value, colors=colour_gradient,
-                  text=~text,
-                  marker=list(symbol='circle-dot',
-                              size=input_point_size()*2,
-                              line=list(width=0)),
-                  hoverinfo='text') %>%
-      hide_colorbar()})
+      arrange(is_selected, feature_value) %>%
+      (function(input_data)
+        plot_ly() %>%
+          layout(paper_bgcolor=panel_background_rgb,
+                 showlegend=FALSE,
+                 scene=list(xaxis=list(visible=FALSE),
+                            yaxis=list(visible=FALSE),
+                            zaxis=list(visible=FALSE)),
+                 modebar=list(orientation='v',
+                              activecolor=plotly_config$modebar$activecolor,
+                              color=plotly_config$modebar$color,
+                              bgcolor=plotly_config$modebar$bgcolor),
+                 legend=list(orientation='h',
+                             xanchor='center',
+                             x=0.5),
+                 hoverlabel=list(bgcolor='white')) %>%
+          config(scrollZoom=FALSE,
+                 displaylogo=FALSE,
+                 modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
+                 displayModeBar=TRUE) %>%
+          add_markers(data=filter(input_data, is_selected),
+                      x=~x, y=~y, z=~z,
+                      color=~feature_value, colors=colour_gradient,
+                      text=~text,
+                      marker=list(symbol='circle-dot',
+                                  size=input_point_size*2,
+                                  opacity=1,
+                                  line=list(width=0)),
+                      hoverinfo='text') %>%
+          add_markers(data=filter(input_data, !is_selected),
+                      x=~x, y=~y, z=~z,
+                      color=~feature_value, colors=colour_gradient,
+                      text=~text,
+                      marker=list(symbol='circle-dot',
+                                  size=input_point_size*2,
+                                  opacity=0.05,
+                                  line=list(width=0)),
+                      hoverinfo='none') %>%
+          hide_colorbar())})
 
   ## make cluster identity scatterplots
   ### 2D ggplot
@@ -485,6 +500,7 @@ reactive(x={
     reduction_coords <- reduction_coords()
     input_filter_cell_filter <- input_filter_cell_filter()
     input_cell_filter_cluster_id <- input_cell_filter_cluster_id()
+    input_point_size <- input_point_size()
 
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
@@ -496,19 +512,19 @@ reactive(x={
     # make a colour scale to match the plotly 3D version
     colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8,n_clusters)) %>%
       head(n=n_clusters) %>%
-      set_names(cluster_idents) %>%
-      magrittr::extract(., input_cell_filter_cluster_id) -> colour_scale_values
+      set_names(cluster_idents) -> colour_scale_values
 
     data.frame(reduction_coords, metadata) %>%
-      filter(cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
+      mutate(is_selected=cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
       rename(.id=cell_colour_variable) %>%
-      arrange(.id) %>%
+      arrange(is_selected, .id) %>%
       {ggplot(data=.) +
-       aes(x=x, y=y, colour=.id) +
-       labs(title='Cell clusters', subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
-       geom_point(size=input_point_size()) +
+       aes(x=x, y=y, colour=.id, alpha=is_selected) +
+       labs(title='Cell clusters', subtitle=sprintf(fmt='n=%s, N=%s', {sum(.$is_selected) %>% comma()}, {nrow(.) %>% comma()})) +
+       geom_point(size=input_point_size) +
        guides(colour=guide_legend(override.aes=list(size=2))) +
        scale_colour_manual(values=colour_scale_values) +
+       scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=0.05)) +
        theme_void() +
        theme(aspect.ratio=1,
              legend.position='none',
@@ -525,40 +541,53 @@ reactive(x={
     reduction_coords <- reduction_coords()
     input_filter_cell_filter <- input_filter_cell_filter()
     input_cell_filter_cluster_id <- input_cell_filter_cluster_id()
+    input_point_size <- input_point_size()
 
     metadata <- isolate(app_data$metadata)
     reduction_coords %<>% pluck('d3')
     cell_colour_variable <- cluster_variable()
 
     data.frame(reduction_coords, metadata) %>%
-      filter(cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
+      mutate(is_selected=cell_filter %in% input_filter_cell_filter & cluster_id %in% input_cell_filter_cluster_id) %>%
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s', cluster_id, group_id)) %>%
       rename(.id=cell_colour_variable) %>%
-      arrange(.id) %>%
-      plot_ly() %>%
-      layout(paper_bgcolor=panel_background_rgb,
-             showlegend=FALSE,
-             scene=list(xaxis=list(visible=FALSE),
-                        yaxis=list(visible=FALSE),
-                        zaxis=list(visible=FALSE)),
-             modebar=list(orientation='v',
-                          activecolor=plotly_config$modebar$activecolor,
-                          color=plotly_config$modebar$color,
-                          bgcolor=plotly_config$modebar$bgcolor),
-             legend=list(orientation='h',
-                         xanchor='center',
-                         x=0.5)) %>%
-      config(scrollZoom=FALSE,
-             displaylogo=FALSE,
-             modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
-             displayModeBar=TRUE) %>%
-      add_markers(x=~x, y=~y, z=~z,
-                  color=~.id, colors='Dark2',
-                  text=~text,
-                  marker=list(symbol='circle-dot',
-                              size=input_point_size()*2,
-                              line=list(width=0)),
-                  hoverinfo='text')})
+      arrange(is_selected, .id) %>%
+      (function(input_data)
+        plot_ly() %>%
+          layout(paper_bgcolor=panel_background_rgb,
+                 showlegend=FALSE,
+                 scene=list(xaxis=list(visible=FALSE),
+                            yaxis=list(visible=FALSE),
+                            zaxis=list(visible=FALSE)),
+                 modebar=list(orientation='v',
+                              activecolor=plotly_config$modebar$activecolor,
+                              color=plotly_config$modebar$color,
+                              bgcolor=plotly_config$modebar$bgcolor),
+                 legend=list(orientation='h',
+                             xanchor='center',
+                             x=0.5)) %>%
+          config(scrollZoom=FALSE,
+                 displaylogo=FALSE,
+                 modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
+                 displayModeBar=TRUE) %>%
+          add_markers(data=filter(input_data, is_selected),
+                      x=~x, y=~y, z=~z,
+                      color=~.id, colors='Dark2',
+                      text=~text,
+                      marker=list(symbol='circle-dot',
+                                  size=input_point_size*2,
+                                  opacity=1,
+                                  line=list(width=0)),
+                      hoverinfo='text') %>%
+          add_markers(data=filter(input_data, !is_selected),
+                      x=~x, y=~y, z=~z,
+                      color=~.id, colors='Dark2',
+                      text=~text,
+                      marker=list(symbol='circle-dot',
+                                  size=input_point_size*2,
+                                  opacity=0.05,
+                                  line=list(width=0)),
+                      hoverinfo='text'))})
 
   ## make cluster/feature signal barplot
   output$grouped_feature_values_barplot <- renderPlot({
