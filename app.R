@@ -195,6 +195,7 @@ server <- function(input, output, session) {
         mutate(across(.cols=i, function(x) factor(metadata_list$factor_levels[[i]][x], levels=metadata_list$factor_levels[[i]])))
 
     #### pull out the list of reductions
+    #### TODO this should update the dropdown UI
     reductions <- h5read(file=h5_file, name='reductions')
 
     #### update UI elements
@@ -276,13 +277,16 @@ server <- function(input, output, session) {
 
   ### collect the reduction method
   reactive(x={
-    req(input$reduction_method)
+    input$reduction_method %T>%
+      (. %>% sprintf(fmt='(input_reduction_method) set reduction_method [%s]') %>% log_message())}) %>%
+    debounce(500) -> input_reduction_method
 
+  reactive(x={
     app_data <- app_data()
 
     h5_file <- app_data$h5_file
     reductions <- app_data$reductions
-    reduction_method <- input$reduction_method
+    reduction_method <- input_reduction_method()
 
     sprintf('(reduction_coords) reading reduction [%s] from: %s', reduction_method, h5_file) %>% log_message()
 
@@ -418,6 +422,7 @@ reactive(x={
     selected_feature <- isolate(selected_feature())
     selected_palette <- selected_palette()
     input_point_size <- input_point_size()
+    reduction_method <- input_reduction_method()
 
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d3')
