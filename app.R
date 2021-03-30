@@ -186,6 +186,9 @@ server <- function(input, output, session) {
     #### load metadata table
     metadata_list <- h5read(file=h5_file, name='metadata')
 
+    ##### convert the 1/0 pass_filters variable into logical TRUE/FALSE
+    metadata_list$data %<>% mutate(pass_filters=as.logical(pass_filters))
+
     ##### for each would-be-factor variable in metadata$data, update the factor levels using metadata$factor_levels
     for(i in names(metadata_list$factor_levels))
       metadata_list$data %<>%
@@ -202,17 +205,18 @@ server <- function(input, output, session) {
                               value=initial_feature)
 
     ##### cell filter selection
+    ##### TODO: this should be generalised, maybe a filters attribute?
     metadata_list$data %>%
       pluck('cell_filter') %>%
       levels() %>%
       updatePickerInput(session=session, inputId='cell_filter_timepoint',
-                        choices=., selected=.)
+                        choices=., selected={metadata_list$data %>% filter(pass_filters) %>% pluck('cell_filter') %>% droplevels() %>% levels()})
 
     metadata_list$data %>%
       pluck('cluster_id') %>%
       levels() %>%
       updatePickerInput(session=session, inputId='cell_filter_cluster_id',
-                        choices=., selected=.)
+                        choices=., selected={metadata_list$data %>% filter(pass_filters) %>% pluck('cluster_id') %>% droplevels() %>% levels()})
 
     #### add to reactive values list
     list(initial_feature=initial_feature,
