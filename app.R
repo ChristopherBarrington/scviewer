@@ -589,12 +589,17 @@ reactive(x={
       return(NULL)
 
     metadata <- app_data$metadata
+    cell_colour_variable <- cluster_variable()
+
     # group_bands <- app_data$group_bands
     feature_values <- selected_feature$values
     feature_name <- selected_feature$name
     palette_package <- 'brewer'
     picked_palette <- 'YlOrRd'
     palette_direction <- 1
+
+    cluster_idents <- metadata %>% pluck(cell_colour_variable) %>% levels()
+    n_clusters <- cluster_idents %>% length()
 
     feature_values %>% digest::digest() %>% sprintf(fmt='(output$grouped_feature_values_barplot) values: %s') %>% log_message()
     
@@ -645,7 +650,8 @@ reactive(x={
               fill=guide_colourbar(order=2, frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2), 
               size=guide_legend(order=3)) +
        theme_bw() +
-       theme(axis.ticks=element_line(size=1),
+       theme(axis.text.y=element_text(face='bold', size=rel(1.2)),
+             axis.ticks=element_line(size=1),
              axis.title.y=element_blank(),
              legend.background=element_blank(),
              legend.key=element_blank(),
@@ -656,7 +662,29 @@ reactive(x={
              panel.grid.minor.x=element_blank(),
              panel.grid.minor.y=element_blank(),
              plot.background=element_blank(),
-             text=element_text(size=14))}}, bg='transparent')
+             text=element_text(size=14))} %>%
+      ggplotGrob() -> gg
+
+    # modify the grobs so the y-axis names are coloured to match the cluster_id of the scatterplot(s)
+    gg_left_axis <- gg$layout$name %>% str_which('axis-l')
+    gg_left_axis_labels <- gg$grobs[[gg_left_axis]]$children %>% sapply(gtable::is.gtable) %>% which()
+    gg_left_axis_labels_titleGrob <- 1
+    gg_left_axis_labels_titleGrob_text <- 1
+
+    # make a colour scale to match the plotly 3D version
+    colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8, n_clusters)) %>%
+      head(n=n_clusters) %>%
+      set_names(cluster_idents) -> colour_scale_values
+
+    # get a conversion between cluster_id and group_id, ready to lookup colours in the colour_scale_values
+    metadata %>% select(group_id, cluster_id) %>% unique() %>% arrange(cluster_id, group_id) %>% mutate_all(as.character) %>% deframe() -> cluster_id_2_group_id
+    gg$grobs[[gg_left_axis]]$children[[gg_left_axis_labels]]$grobs[[gg_left_axis_labels_titleGrob]]$children[[gg_left_axis_labels_titleGrob_text]]$label -> cluster_ids
+
+    # convert cluster_id > group_id > colour_value
+    gg$grobs[[gg_left_axis]]$children[[gg_left_axis_labels]]$grobs[[gg_left_axis_labels_titleGrob]]$children[[gg_left_axis_labels_titleGrob_text]]$gp$col <- colour_scale_values[cluster_id_2_group_id[cluster_ids]]
+
+    # draw the grid
+    grid::grid.draw(gg)}, bg='transparent')
 }
 
 # start the app
