@@ -400,7 +400,7 @@ server <- function(input, output, session) {
       arrange(is_selected, feature_value) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=feature_value, alpha=is_selected) +
-       labs(title=sprintf(fmt='%s in cells', feature_name), subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
+       labs(title=sprintf(fmt='%s in cells', feature_name), subtitle=sprintf(fmt='n=%s, N=%s', {sum(.$is_selected) %>% comma()}, {nrow(.) %>% comma()})) +
        geom_point(size=input_point_size) +
        colour_gradient +
        scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=0.05)) +
@@ -518,7 +518,7 @@ server <- function(input, output, session) {
       arrange(is_selected, .id) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=.id, alpha=is_selected) +
-       labs(title='Cell clusters', subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
+       labs(title='Cell clusters', subtitle=sprintf(fmt='n=%s, N=%s', {sum(.$is_selected) %>% comma()}, {nrow(.) %>% comma()})) +
        geom_point(size=input_point_size) +
        guides(colour=guide_legend(override.aes=list(size=2))) +
        scale_colour_manual(values=colour_scale_values) +
