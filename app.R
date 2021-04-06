@@ -10,6 +10,7 @@
 
 .libPaths(c(.libPaths(), 'lib'))
 
+library(grid) # to grid.draw the feature values distributions
 library(rhdf5)
 library(shiny)
 library(dqshiny)
@@ -577,7 +578,7 @@ server <- function(input, output, session) {
       return(NULL)
 
     metadata <- app_data$metadata
-    # group_bands <- app_data$group_bands
+
     feature_values <- selected_feature$values
     feature_name <- selected_feature$name
     palette_package <- 'brewer'
@@ -594,19 +595,9 @@ server <- function(input, output, session) {
       fill_gradient <- scale_fill_gradient()
     }
 
-    ### collect positions of bands to group (cell types)
-    ### disabled, use geom_rect in plot
-    # group_bands %>%
-    #   c(0.5, .) %>%
-    #   cumsum() %>%
-    #   (function(x) data.frame(xmin=head(x, n=-1), xmax=tail(x, n=-1))) %>%
-    #   mutate(colour=rep(c('white','grey95'), length.out=n())) %>%
-    #   rbind(.[NA,]) -> group_band_positions
-
     cbind(metadata, feature_value=feature_values) %>%
-      # filter(cell_filter %in% input_cell_filter()) %>%
       add_column(feature_name=feature_name) %>%
-      group_by(group_id, feature_name) %>%
+      group_by(cluster_id, feature_name) %>%
       mutate(cells_in_group=n()) %>%
       filter(feature_value>0) %>% # only use cells with non-zero expression
       group_by(cells_in_group, add=TRUE) %>%
@@ -615,15 +606,13 @@ server <- function(input, output, session) {
                 median_value=median(feature_value),
                 from_value=quantile(feature_value, 0.25),
                 to_value=quantile(feature_value, 0.75)) %>%
-      mutate(group_id=fct_relevel(group_id, rev)) %>%
+      mutate(cluster_id=fct_relevel(cluster_id, rev)) %>%
       {ggplot(data=.) +
-       aes(x=group_id, y=expressing_cells/cells_in_group*100, fill=mean_value) +
+       aes(x=cluster_id, y=expressing_cells/cells_in_group*100, fill=mean_value) +
        labs(x='Group ID',
-            y='Detected in cells within type',
+            y='Detected in cells within cluster',
             fill=sprintf(fmt='%s\n(mean)', feature_name),
-            title=sprintf(fmt='%s in cell type', feature_name)) +
-       # geom_rect(data=group_band_positions, mapping=aes(xmin=xmin, xmax=xmax, ymin=-Inf, ymax=Inf), fill=group_band_positions$colour, inherit.aes=FALSE) +
-       # geom_vline(xintercept={levels(.$group_id) %>% length() %>% seq()}, colour='grey60', size=0.5) +
+            title=sprintf(fmt='%s in cell clusters', feature_name)) +
        geom_point(shape=21, colour='grey0', stroke=1, size=5) +
        scale_x_discrete(drop=FALSE) +
        scale_y_continuous(labels=function(y) str_c(y, '%')) +
@@ -633,7 +622,8 @@ server <- function(input, output, session) {
               fill=guide_colourbar(order=2, frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2), 
               size=guide_legend(order=3)) +
        theme_bw() +
-       theme(axis.ticks=element_line(size=1),
+       theme(axis.text.y=element_text(face='bold', size=rel(1.2)),
+             axis.ticks=element_line(size=1),
              axis.title.y=element_blank(),
              legend.background=element_blank(),
              legend.key=element_blank(),
@@ -644,7 +634,33 @@ server <- function(input, output, session) {
              panel.grid.minor.x=element_blank(),
              panel.grid.minor.y=element_blank(),
              plot.background=element_blank(),
-             text=element_text(size=14))}}, bg='transparent')
+             text=element_text(size=14))} %>%
+      ggplotGrob() -> gg
+
+    ### modify the (rotated) y-axis label grobs so the text is coloured to match the cluster_id of the scatterplot(s)
+    #### get names of cluster identities (y-axis labels) in plot
+    cluster_idents <- metadata %>% pluck('cluster_id') %>% levels()
+    n_clusters <- cluster_idents %>% length()
+
+    #### get locations of grobs to modify in the gtable
+    gg_left_axis <- gg$layout$name %>% str_which('axis-l')
+    gg_left_axis_labels <- gg$grobs[[gg_left_axis]]$children %>% sapply(gtable::is.gtable) %>% which()
+    gg_left_axis_labels_titleGrob <- 1
+    gg_left_axis_labels_titleGrob_text <- 1
+
+    #### make a colour scale to match the plotly 3D version
+    colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8, n_clusters)) %>%
+      head(n=n_clusters) %>%
+      set_names(cluster_idents) -> colour_scale_values
+
+    #### get the y-axis labels
+    gg$grobs[[gg_left_axis]]$children[[gg_left_axis_labels]]$grobs[[gg_left_axis_labels_titleGrob]]$children[[gg_left_axis_labels_titleGrob_text]]$label -> cluster_ids
+
+    #### lookup colours for y-axis labels
+    gg$grobs[[gg_left_axis]]$children[[gg_left_axis_labels]]$grobs[[gg_left_axis_labels_titleGrob]]$children[[gg_left_axis_labels_titleGrob_text]]$gp$col <- colour_scale_values[cluster_ids]
+
+    ### draw the grid
+    grid.draw(gg)}, bg='transparent')
 }
 
 # start the app
