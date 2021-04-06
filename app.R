@@ -429,7 +429,7 @@ server <- function(input, output, session) {
  
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
       mutate(is_selected=cell_filter %in% input_cell_filter) %>%
-      mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, feature_name, feature_value)) %>%
+      mutate(text=sprintf(fmt='Cluster: %s\n%s: %.2f', cluster_id, feature_name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(is_selected, feature_value) %>%
       (function(input_data)
@@ -489,14 +489,9 @@ server <- function(input, output, session) {
     n_clusters <- cluster_idents %>% length()
 
     # make a colour scale to match the plotly 3D version
-    colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8,n_clusters)) %>%
+    colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8, n_clusters)) %>%
       head(n=n_clusters) %>%
-      set_names(cluster_idents) %>%
-      magrittr::extract(., cluster_idents) -> colour_scale_values
-    # colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8,n_clusters)) %>%
-    #   head(n=n_clusters) %>%
-    #   set_names(cluster_idents) %>%
-    #   magrittr::extract(., input_cell_filter_cluster_id) -> colour_scale_values
+      set_names(cluster_idents) -> colour_scale_values
 
     data.frame(reduction_coords, metadata) %>%
       mutate(is_selected=cell_filter %in% input_cell_filter) %>%
@@ -554,7 +549,7 @@ server <- function(input, output, session) {
                displayModeBar=TRUE) %>%
         add_markers(data=filter(input_data, is_selected),
                     x=~x, y=~y, z=~z,
-                    color=~.id, colors='Set2',
+                    color=~.id, colors='Dark2',
                     text=~text,
                     marker=list(symbol='circle-dot',
                                 size=input_point_size*2,
