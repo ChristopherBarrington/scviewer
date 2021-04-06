@@ -73,15 +73,12 @@ dashboardSidebar(disable=FALSE,
                  tags$style(type='text/css', '.irs-grid-text {visibility: hidden !important;}'),
                  tags$style(type='text/css', '.autocomplete-items div:hover {background-color: #DDDDDD;}'),
                  tags$head(tags$link(rel='shortcut icon', href='https://www.crick.ac.uk/themes/custom/crick/favicons/favicon.ico')),
-                 selectizeInput(inputId='filename',
-                                label='Select a dataset',
-                                choices=dataset_choices,
+                 selectizeInput(inputId='filename', label='Select a dataset', choices=dataset_choices,
                                 options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
                  autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
                  sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
                  selectInput(inputId='reduction_method', label='Dimension reduction method', choices=NULL, selected=NULL),
-                 # selectInput(inputId='reduction_method', label='Dimension reduction method', choices=list(PCA='pca', UMAP='umap', tSNE='tsne'), selected='umap'),
-                 pickerInput(inputId='cell_filter', label='Cell filter', choices=NULL, selected=NULL, options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>1'), multiple=TRUE),
+                 div(id='filters'),
                  {list(`Brewer [sequential]`=list(`brewer:Blues:f`=brewer_pal(palette='Blues', direction=1)(8),
                                                   `brewer:BuPu:f`=brewer_pal(palette='BuPu', direction=1)(8),
                                                   `brewer:GnBu:f`=brewer_pal(palette='GnBu', direction=1)(8),
@@ -216,14 +213,6 @@ server <- function(input, output, session) {
                               options=all_features,
                               value=initial_feature)
 
-    ##### cell filter selection
-    metadata_list$data %>%
-      pluck('cell_filter') %>%
-      levels() %>%
-      replace(is.null(.), 'no filtering') %>%
-      updatePickerInput(session=session, inputId='cell_filter',
-                        choices=., selected=.)
-
     ##### dimension reduction method
     reduction_names <- c(umap='UMAP', tsne='tSNE', pca='PCA')
     
@@ -241,11 +230,29 @@ server <- function(input, output, session) {
 
     updateSelectInput(session=session, inputId='reduction_method',
                       choices=reduction_choices, selected=reduction_selected)
+
+    ##### create the filter UI elements
+    removeUI(selector='#all_filters', immediate=TRUE) # clear any filter UI elements that are already drawn
+    cell_filter_parameters <- tryCatch(h5read(file=h5_file, name='cell_filter_parameters'), error=function(...) NULL)
+
+    cell_filter_parameters %>%
+      Map(params=., label=names(.), function(params, label)
+        metadata_list$data %>%
+          pluck(params$var) %>%
+          levels() %>%
+          pickerInput(inputId=params$inputId, label=label,
+                      choices=., selected=.,
+                      options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>1'),
+                      multiple=TRUE)) %>%
+      tags$div(id='all_filters') %>%
+      insertUI(selector='#filters', where='afterBegin', immediate=TRUE, session=session)
+
     #### add to reactive values list
     list(initial_feature=initial_feature,
          reductions=reductions,
          metadata=metadata_list$data,
          h5_file=h5_file,
+         cell_filter_parameters=cell_filter_parameters,
          dataset_key=input_dataset_key)}) -> app_data
 
   observe(x={if(getOption('scviewer.verbose', default=FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
@@ -335,11 +342,23 @@ server <- function(input, output, session) {
 
   ### collect the cell filtering values
   reactive(x={
-    req(input$cell_filter)
+    sprintf(fmt='(formatted_cell_filter) making formatted filter expression') %>% log_message()
 
-    input$cell_filter %T>%
-      (. %>% str_c(collapse=', ') %>% sprintf(fmt='(input_cell_filter) set cell_filter to [%s]') %>% log_message())}) %>%
-    debounce(500) -> input_cell_filter
+    app_data <- app_data()
+
+    if(app_data$cell_filter_parameters %>% is.null()) {
+      'TRUE'
+    } else {
+      app_data$cell_filter_parameters %>%
+        lapply(function(x) 
+          sprintf('input$%s', x$inputId) %>%
+            parse(text=.) %>%
+            eval() %>%
+            str_c(collapse='","') %>%
+            sprintf(fmt='%s %%in%% c("%s")', x$var, .)) %>%
+        str_c(collapse=' & ')
+    }}) %>%
+    debounce(500) -> formatted_cell_filter
 
   ## on startup, show reminder to load a dataset
   sendSweetAlert(
@@ -363,7 +382,7 @@ server <- function(input, output, session) {
   output$feature_scatterplot <- renderPlot({
     log_message('(output$feature_scatterplot) making 2d feature scatterplot')
     app_data <- app_data()
-    input_cell_filter <- input_cell_filter()
+    formatted_cell_filter <- formatted_cell_filter()
     input_feature_value_limits <- input_feature_value_limits()
     input_point_size <- input_point_size()
     reduction_coords <- reduction_coords()
@@ -396,7 +415,7 @@ server <- function(input, output, session) {
     }
 
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
-      mutate(is_selected=cell_filter %in% input_cell_filter) %>%
+      mutate_(is_selected=formatted_cell_filter) %>%
       arrange(is_selected, feature_value) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=feature_value, alpha=is_selected) +
@@ -422,7 +441,7 @@ server <- function(input, output, session) {
     log_message('(output$feature_scatterplot_3d) making 3d feature scatterplot')
 
     app_data <- app_data()
-    input_cell_filter <- input_cell_filter()
+    formatted_cell_filter <- formatted_cell_filter()
     input_feature_value_limits <- input_feature_value_limits()
     reduction_coords <- reduction_coords()
     selected_feature <- isolate(selected_feature())
@@ -447,7 +466,7 @@ server <- function(input, output, session) {
     }
  
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
-      mutate(is_selected=cell_filter %in% input_cell_filter) %>%
+      mutate_(is_selected=formatted_cell_filter) %>%
       mutate(text=sprintf(fmt='Cluster: %s\n%s: %.2f', cluster_id, feature_name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(is_selected, feature_value) %>%
@@ -497,7 +516,7 @@ server <- function(input, output, session) {
 
     app_data <- app_data()
     reduction_coords <- reduction_coords()
-    input_cell_filter <- input_cell_filter()
+    formatted_cell_filter <- formatted_cell_filter()
 
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
@@ -513,7 +532,7 @@ server <- function(input, output, session) {
       set_names(cluster_idents) -> colour_scale_values
 
     data.frame(reduction_coords, metadata) %>%
-      mutate(is_selected=cell_filter %in% input_cell_filter) %>%
+      mutate_(is_selected=formatted_cell_filter) %>%
       rename(.id=cell_colour_variable) %>%
       arrange(is_selected, .id) %>%
       {ggplot(data=.) +
@@ -538,14 +557,14 @@ server <- function(input, output, session) {
     app_data <- app_data()
     reduction_coords <- reduction_coords()
     input_point_size <- input_point_size()
-    input_cell_filter <- input_cell_filter()
+    formatted_cell_filter <- formatted_cell_filter()
 
     metadata <- isolate(app_data$metadata)
     reduction_coords %<>% pluck('d3')
     cell_colour_variable <- cluster_variable()
 
     data.frame(reduction_coords, metadata) %>%
-      mutate(is_selected=cell_filter %in% input_cell_filter) %>%
+      mutate_(is_selected=formatted_cell_filter) %>%
       rename(.id=cell_colour_variable) %>%
       mutate(text=sprintf(fmt='Cluster: %s', .id)) %>%
       arrange(is_selected, .id) %>%
