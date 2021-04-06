@@ -180,17 +180,6 @@ server <- function(input, output, session) {
       get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default')) %T>%
       (. %>% sprintf(fmt='(app_data) initial_feature: %s') %>% log_message(prepend='+++')) -> initial_feature
 
-    #### get and evaluate any group bands
-    #### this is a vector of the number of rows in each band
-    #### the yaml should be a comma-separated string
-    # get_config_values(app_config, 'group_bands') %>%
-    #   mutate(default='') %>%
-    #   get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default')) %T>%
-    #   (. %>% sprintf(fmt='(app_data) group_bands: %s') %>% log_message(prepend='+++')) %>%
-    #   sprintf(fmt='c(%s)') %>%
-    #   parse(text=.) %>%
-    #   eval() -> group_bands
-
     #### load metadata table
     metadata_list <- h5read(file=h5_file, name='metadata')
     if(is.null(metadata_list$data$cell_filter))
@@ -223,7 +212,6 @@ server <- function(input, output, session) {
     list(initial_feature=initial_feature,
          reductions=reductions,
          metadata=metadata_list$data,
-         # group_bands=group_bands,
          h5_file=h5_file,
          dataset_key=input_dataset_key)}) -> app_data
 
