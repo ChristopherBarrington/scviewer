@@ -79,7 +79,8 @@ dashboardSidebar(disable=FALSE,
                                 options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
                  autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
                  sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
-                 selectInput(inputId='reduction_method', label='Dimension reduction method', choices=list(PCA='pca', UMAP='umap', tSNE='tsne'), selected='umap'),
+                 selectInput(inputId='reduction_method', label='Dimension reduction method', choices=NULL, selected=NULL),
+                 # selectInput(inputId='reduction_method', label='Dimension reduction method', choices=list(PCA='pca', UMAP='umap', tSNE='tsne'), selected='umap'),
                  pickerInput(inputId='cell_filter', label='Cell filter', choices=NULL, selected=NULL, options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>1'), multiple=TRUE),
                  {list(`Brewer [sequential]`=list(`brewer:Blues:f`=brewer_pal(palette='Blues', direction=1)(8),
                                                   `brewer:BuPu:f`=brewer_pal(palette='BuPu', direction=1)(8),
@@ -153,6 +154,21 @@ server <- function(input, output, session) {
     str_c(prepend, {Sys.time() %>% format('%H:%M:%S')}, text, sep=' ') %>%
       message()
 
+  preferred_choice <- function(x, preferences, default=1) {
+    if(length(x)==0)
+      stop('no elements from which to choose!')
+    
+    # if no `preferences` are in `x`, use the first element of `x`
+    preferences %<>% append(pluck(x, default))
+
+    # return the first match in ranked `preferences` that is in `x`
+    x %>%
+      str_c(collapse='|') %>%
+      sprintf(fmt='^(%s)$') %>%
+      str_subset(string=preferences) %>%
+      head(n=1)
+  }
+
   ## get UI inputs
   ### load the dataset file
   initialised <- reactiveValues()
@@ -208,6 +224,23 @@ server <- function(input, output, session) {
       updatePickerInput(session=session, inputId='cell_filter',
                         choices=., selected=.)
 
+    ##### dimension reduction method
+    reduction_names <- c(umap='UMAP', tsne='tSNE', pca='PCA')
+    
+    names(reductions) %>%
+      str_remove('_3d$') %>%
+      unique() %>%
+      set_names() -> reductions_available
+    
+    reductions_available %>%
+      as.list() %>%
+      set_names(function(x) magrittr::extract(reduction_names, x)) -> reduction_choices
+    
+    reductions_available %>%
+      preferred_choice(preferences=names(reduction_names), default=1) -> reduction_selected
+
+    updateSelectInput(session=session, inputId='reduction_method',
+                      choices=reduction_choices, selected=reduction_selected)
     #### add to reactive values list
     list(initial_feature=initial_feature,
          reductions=reductions,
@@ -236,10 +269,7 @@ server <- function(input, output, session) {
     slider_max <- max(feature_values) %>% add(0.05) %>% round(digits=1)
 
     sprintf('(selected_feature) setting value limits for %s to [%s]', input_feature, str_c(slider_min, slider_max, sep=',')) %>% log_message()
-   
-    # sprintf(fmt='%s signal limits', input_feature) %>%
-    #   updateSliderInput(session=session, inputId='feature_value_limits')
-   
+ 
     updateSliderInput(session=session, inputId='feature_value_limits',
                       min=slider_min, max=slider_max,
                       value=c(slider_min, slider_max))
@@ -610,7 +640,7 @@ server <- function(input, output, session) {
               fill=guide_colourbar(order=2, frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2), 
               size=guide_legend(order=3)) +
        theme_bw() +
-       theme(axis.text.y=element_text(face='bold', size=rel(1.2)),
+       theme(axis.text.y=element_text(face='bold', size=rel(1.5)),
              axis.ticks=element_line(size=1),
              axis.title.y=element_blank(),
              legend.background=element_blank(),
