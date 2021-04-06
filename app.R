@@ -43,17 +43,16 @@ map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file') %>%
   plyr::ldply(function(x) data.frame(name=names(x))) %>%
   unite('key', .id, name, sep='$', remove=FALSE) %>%
   mutate_if(is.factor, as.character) %>%
-  plyr::dlply(~.id, select, name, key) %>%
-  plyr::llply(deframe) -> dataset_choices
+  plyr::dlply(~.id, plyr::dlply, ~name, pluck, 'key') -> dataset_choices
 
 # define the UI
 ## header
 dashboardHeader(disable=FALSE,
                 title=app_config$title,
-                titleWidth='1000px',
                 tags$li(a(onclick='history.go(-1); return false;', href=NULL,
                           icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer'),
-                        class='dropdown')) -> ui_header
+                        class='dropdown'),
+                titleWidth='1000px') -> ui_header
 
 ## sidebar
 dashboardSidebar(disable=FALSE,
@@ -80,7 +79,7 @@ dashboardSidebar(disable=FALSE,
                  autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
                  sliderInput(inputId='feature_value_limits', label='Feature signal limits', min=0, max=1, step=0.05, value=c(0,0)),
                  selectInput(inputId='reduction_method', label='Dimension reduction method', choices=list(PCA='pca', UMAP='umap', tSNE='tsne'), selected='umap'),
-                 prettyCheckboxGroup(inputId='cell_filter', label='Cell filter', choices='No filtering', selected='No filtering'),
+                 pickerInput(inputId='cell_filter', label='Cell filter', choices=NULL, selected=NULL, options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>1'), multiple=TRUE),
                  {list(`Brewer [sequential]`=list(`brewer:Blues:f`=brewer_pal(palette='Blues', direction=1)(8),
                                                   `brewer:BuPu:f`=brewer_pal(palette='BuPu', direction=1)(8),
                                                   `brewer:GnBu:f`=brewer_pal(palette='GnBu', direction=1)(8),
@@ -106,7 +105,7 @@ dashboardSidebar(disable=FALSE,
                                                  `brewer:BrBG:r`=brewer_pal(palette='BrBG', direction=-1)(8),
                                                  `brewer:Spectral:r`=brewer_pal(palette='Spectral', direction=-1)(8))) %>%
                  palettePicker(inputId='predefined_palette', label='Colour palette', 
-                               selected='brewer:YlGnBu:f', textColor=rgb(red=0, green=0, blue=0, alpha=0),
+                               selected='viridis:plasma:f', textColor=rgb(red=0, green=0, blue=0, alpha=0),
                                pickerOpts=list(`live-search`=FALSE, size=10))},
                  sliderInput(inputId='point_size', label='Size of cells', min=0.3, max=1.5, step=0.05, value=1.0)) -> ui_sidebar
 
@@ -139,7 +138,7 @@ server <- function(input, output, session) {
       unite(index, L2, L3, sep='$') %>%
       spread(key=index, value=value) %>%
       rename_at(vars(matches('^NA\\$NA$')), function(x) 'default') %>%
-      purrr::set_names(str_remove, pattern='\\$config') %>%
+      set_names(str_remove, pattern='\\$config') %>%
       mutate_all(as.character)
 
   get_prioritised_value <- function(values, priority)
@@ -165,9 +164,9 @@ server <- function(input, output, session) {
 
     #### parse dropdown key to give levels 1 and 2 from the datasets key of the yaml config
     input_dataset_key %>%
-      stringr::str_split('\\$') %>%
-      purrr::pluck(1) %>%
-      purrr::set_names('L1','L2') %>%
+      str_split('\\$') %>%
+      pluck(1) %>%
+      set_names('L1','L2') %>%
       as.list() -> dataset_selection
 
     #### get the h5 file from the config file
@@ -216,10 +215,8 @@ server <- function(input, output, session) {
       pluck('cell_filter') %>%
       levels() %>%
       replace(is.null(.), 'no filtering') %>%
-      updatePrettyCheckboxGroup(session=session, inputId='cell_filter',
-                                choices=., selected=.,
-                                prettyOptions=list(icon=icon('check-square-o'), status='primary',
-                                                   outline=TRUE, animation='jelly', bigger=TRUE, inline=TRUE))
+      updatePickerInput(session=session, inputId='cell_filter',
+                        choices=., selected=.)
 
     #### add to reactive values list
     list(initial_feature=initial_feature,
@@ -380,14 +377,16 @@ server <- function(input, output, session) {
     }
 
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
-      arrange(feature_value) %>%
-      filter(cell_filter %in% input_cell_filter) %>%
+      mutate(is_selected=cell_filter %in% input_cell_filter) %>%
+      arrange(is_selected, feature_value) %>%
       {ggplot(data=.) +
-       aes(x=x, y=y, colour=feature_value) +
+       aes(x=x, y=y, colour=feature_value, alpha=is_selected) +
        labs(title=sprintf(fmt='%s in cells', feature_name), subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
        geom_point(size=input_point_size) +
        colour_gradient +
-       guides(color=guide_colourbar(label.position='bottom', frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2)) +
+       scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=0.05)) +
+       guides(color=guide_colourbar(label.position='bottom', frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2),
+              alpha=FALSE) +
        theme_void() +
        theme(aspect.ratio=1,
              legend.box.margin=margin(r=10, b=10, t=0, l=0),
@@ -428,36 +427,48 @@ server <- function(input, output, session) {
     }
  
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
+      mutate(is_selected=cell_filter %in% input_cell_filter) %>%
       mutate(text=sprintf(fmt='Cluster: %s\nGroup: %s\n%s: %.2f', cluster_id, group_id, feature_name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(feature_value) %>%
-      filter(cell_filter %in% input_cell_filter) %>%
-      plot_ly() %>%
-      layout(paper_bgcolor=panel_background_rgb,
-             showlegend=FALSE,
-             scene=list(xaxis=list(visible=FALSE),
-                        yaxis=list(visible=FALSE),
-                        zaxis=list(visible=FALSE)),
-             modebar=list(orientation='v',
-                          activecolor=plotly_config$modebar$activecolor,
-                          color=plotly_config$modebar$color,
-                          bgcolor=plotly_config$modebar$bgcolor),
-             legend=list(orientation='h',
-                         xanchor='center',
-                         x=0.5),
-             hoverlabel=list(bgcolor='white')) %>%
-      config(scrollZoom=FALSE,
-             displaylogo=FALSE,
-             modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
-             displayModeBar=TRUE) %>%
-      add_markers(x=~x, y=~y, z=~z,
-                  color=~feature_value, colors=colour_gradient,
-                  text=~text,
-                  marker=list(symbol='circle-dot',
-                              size=input_point_size()*2,
-                              line=list(width=0)),
-                  hoverinfo='text') %>%
-      hide_colorbar()})
+      (function(input_data)
+        plot_ly() %>%
+        layout(paper_bgcolor=panel_background_rgb,
+               showlegend=FALSE,
+               scene=list(xaxis=list(visible=FALSE),
+                          yaxis=list(visible=FALSE),
+                          zaxis=list(visible=FALSE)),
+               modebar=list(orientation='v',
+                            activecolor=plotly_config$modebar$activecolor,
+                            color=plotly_config$modebar$color,
+                            bgcolor=plotly_config$modebar$bgcolor),
+               legend=list(orientation='h',
+                           xanchor='center',
+                           x=0.5),
+               hoverlabel=list(bgcolor='white')) %>%
+        config(scrollZoom=FALSE,
+               displaylogo=FALSE,
+               modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
+               displayModeBar=TRUE) %>%
+        add_markers(data=filter(input_data, is_selected),
+                    x=~x, y=~y, z=~z,
+                    color=~feature_value, colors=colour_gradient,
+                    text=~text,
+                    marker=list(symbol='circle-dot',
+                                size=input_point_size()*2,
+                                opacity=1,
+                                line=list(width=0)),
+                    hoverinfo='text') %>%
+        add_markers(data=filter(input_data, !is_selected),
+                    x=~x, y=~y, z=~z,
+                    color=~feature_value, colors=colour_gradient,
+                    text=~text,
+                    marker=list(symbol='circle-dot',
+                                size=input_point_size()*2,
+                                opacity=0.05,
+                                line=list(width=0)),
+                    hoverinfo='text') %>%
+        hide_colorbar())})
 
   ## make cluster identity scatterplots
   ### 2D ggplot
@@ -478,7 +489,11 @@ server <- function(input, output, session) {
     colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8,n_clusters)) %>%
       head(n=n_clusters) %>%
       set_names(cluster_idents) %>%
-      magrittr::extract(., input_cell_filter_cluster_id) -> colour_scale_values
+      magrittr::extract(., cluster_idents) -> colour_scale_values
+    # colorRampPalette(brewer.pal(n=8, name='Dark2'))(pmax(8,n_clusters)) %>%
+    #   head(n=n_clusters) %>%
+    #   set_names(cluster_idents) %>%
+    #   magrittr::extract(., input_cell_filter_cluster_id) -> colour_scale_values
 
     data.frame(reduction_coords, metadata) %>%
       rename(.id=cell_colour_variable) %>%
