@@ -408,6 +408,7 @@ server <- function(input, output, session) {
     reduction_coords <- reduction_coords()
     selected_feature <- isolate(selected_feature())
     selected_palette <- selected_palette()
+    input_point_size <- input_point_size()
 
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d3')
@@ -455,7 +456,7 @@ server <- function(input, output, session) {
                     color=~feature_value, colors=colour_gradient,
                     text=~text,
                     marker=list(symbol='circle-dot',
-                                size=input_point_size()*2,
+                                size=input_point_size*2,
                                 opacity=1,
                                 line=list(width=0)),
                     hoverinfo='text') %>%
@@ -464,7 +465,7 @@ server <- function(input, output, session) {
                     color=~feature_value, colors=colour_gradient,
                     text=~text,
                     marker=list(symbol='circle-dot',
-                                size=input_point_size()*2,
+                                size=input_point_size*2,
                                 opacity=0.05,
                                 line=list(width=0)),
                     hoverinfo='text') %>%
@@ -481,6 +482,7 @@ server <- function(input, output, session) {
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
     cell_colour_variable <- cluster_variable()
+    input_point_size <- input_point_size()
 
     cluster_idents <- metadata %>% pluck(cell_colour_variable) %>% levels()
     n_clusters <- cluster_idents %>% length()
@@ -502,7 +504,7 @@ server <- function(input, output, session) {
       {ggplot(data=.) +
        aes(x=x, y=y, colour=.id) +
        labs(title='Cell clusters', subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
-       geom_point(size=input_point_size()) +
+       geom_point(size=input_point_size) +
        guides(colour=guide_legend(override.aes=list(size=2))) +
        scale_colour_manual(values=colour_scale_values) +
        theme_void() +
@@ -519,6 +521,7 @@ server <- function(input, output, session) {
 
     app_data <- app_data()
     reduction_coords <- reduction_coords()
+    input_point_size <- input_point_size()
 
     metadata <- isolate(app_data$metadata)
     reduction_coords %<>% pluck('d3')
@@ -550,7 +553,7 @@ server <- function(input, output, session) {
                   color=~.id, colors='Set2',
                   text=~text,
                   marker=list(symbol='circle-dot',
-                              size=input_point_size()*2,
+                              size=input_point_size*2,
                               line=list(width=0)),
                   hoverinfo='text')})
 
