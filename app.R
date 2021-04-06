@@ -623,7 +623,7 @@ server <- function(input, output, session) {
       mutate(group_id=fct_relevel(group_id, rev)) %>%
       {ggplot(data=.) +
        aes(x=group_id, y=expressing_cells/cells_in_group*100, fill=mean_value) +
-       labs(x='Cell types',
+       labs(x='Group ID',
             y='Detected in cells within type',
             fill=sprintf(fmt='%s\n(mean)', feature_name),
             title=sprintf(fmt='%s in cell type', feature_name)) +
