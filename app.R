@@ -22,6 +22,7 @@ library(RColorBrewer)
 library(scales) # for comma()
 library(esquisse) # for palettePicker()
 library(waiter)
+library(stringi) # for stri_rand_strings
 
 library(magrittr)
 library(tidyverse)
@@ -233,7 +234,10 @@ server <- function(input, output, session) {
 
     ##### create the filter UI elements
     removeUI(selector='#all_filters', immediate=TRUE) # clear any filter UI elements that are already drawn
-    cell_filter_parameters <- tryCatch(h5read(file=h5_file, name='cell_filter_parameters'), error=function(...) NULL)
+    tryCatch(h5read(file=h5_file, name='cell_filter_parameters'), error=function(...) NULL) %>%
+      lapply(function(x) modifyList(x=x, val=list(inputId=str_c(x$var, stri_rand_strings(n=1, length=5), sep='.')))) -> cell_filter_parameters
+
+    lapply(cell_filter_parameters, pluck, 'inputId') %>% unlist() %>% str_c(collapse=', ') %>% sprintf(fmt='(app_data) creating filter UI elements for: %s') %>% log_message()
 
     cell_filter_parameters %>%
       Map(params=., label=names(.), function(params, label)
@@ -346,7 +350,7 @@ server <- function(input, output, session) {
 
     app_data <- app_data()
 
-    if(app_data$cell_filter_parameters %>% is.null()) {
+    if(app_data$cell_filter_parameters %>% length() %>% equals(0)) {
       'TRUE'
     } else {
       app_data$cell_filter_parameters %>%
