@@ -517,11 +517,12 @@ server <- function(input, output, session) {
       rename(.id=cell_colour_variable) %>%
       arrange(is_selected, .id) %>%
       {ggplot(data=.) +
-       aes(x=x, y=y, colour=.id) +
+       aes(x=x, y=y, colour=.id, alpha=is_selected) +
        labs(title='Cell clusters', subtitle={nrow(.) %>% comma() %>% sprintf(fmt='n=%s')}) +
        geom_point(size=input_point_size) +
        guides(colour=guide_legend(override.aes=list(size=2))) +
        scale_colour_manual(values=colour_scale_values) +
+       scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=0.05)) +
        theme_void() +
        theme(aspect.ratio=1,
              legend.position='none',
@@ -577,7 +578,7 @@ server <- function(input, output, session) {
                     hoverinfo='text') %>%
         add_markers(data=filter(input_data, !is_selected),
                     x=~x, y=~y, z=~z,
-                    color=~.id, colors='Set2',
+                    color=~.id, colors='Dark2',
                     text=~text,
                     marker=list(symbol='circle-dot',
                                 size=input_point_size*2,
