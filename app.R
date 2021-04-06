@@ -237,7 +237,11 @@ server <- function(input, output, session) {
     tryCatch(h5read(file=h5_file, name='cell_filter_parameters'), error=function(...) NULL) %>%
       lapply(function(x) modifyList(x=x, val=list(inputId=str_c(x$var, stri_rand_strings(n=1, length=5), sep='.')))) -> cell_filter_parameters
 
-    lapply(cell_filter_parameters, pluck, 'inputId') %>% unlist() %>% str_c(collapse=', ') %>% sprintf(fmt='(app_data) creating filter UI elements for: %s') %>% log_message()
+    lapply(cell_filter_parameters, pluck, 'inputId') %>%
+      unlist() %>%
+      str_c(collapse=', ') %>%
+      sprintf(fmt='(app_data) creating filter UI elements for: %s') %>%
+      log_message(prepend='+++')
 
     cell_filter_parameters %>%
       Map(params=., label=names(.), function(params, label)
