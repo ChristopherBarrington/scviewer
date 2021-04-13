@@ -107,7 +107,8 @@ dashboardSidebar(disable=FALSE,
                  palettePicker(inputId='predefined_palette', label='Colour palette', 
                                selected='viridis:plasma:f', textColor=rgb(red=0, green=0, blue=0, alpha=0),
                                pickerOpts=list(`live-search`=FALSE, size=10))},
-                 sliderInput(inputId='point_size', label='Size of cells', min=0.3, max=1.5, step=0.05, value=1.0)) -> ui_sidebar
+                 sliderInput(inputId='point_size', label='Size of cells', min=0.3, max=1.5, step=0.05, value=1.0),
+                 prettySwitch(inputId='match_scenes_3d_plotly', label='Match 3D plot layouts', value=FALSE, status='success', fill=TRUE)) -> ui_sidebar
 
 ## main body, plots
 dashboardBody(shinyDashboardThemes(theme='grey_light'),
@@ -332,6 +333,12 @@ server <- function(input, output, session) {
       (. %>% sprintf(fmt='(input_point_size) set point_size [%s]') %>% log_message())}) %>%
     debounce(500) -> input_point_size
 
+  ### collect the input whether to tie scenes of 3d plots together
+  reactive(x={
+    input$match_scenes_3d_plotly %T>%
+      (. %>% sprintf(fmt='(input_match_scenes_3d_plotly) set match_scenes_3d_plotly [%s]') %>% log_message())}) %>%
+    debounce(500) -> input_match_scenes_3d_plotly
+
   ### collect the selected colour palette
   reactive(x={
     req(input$predefined_palette)
@@ -479,7 +486,8 @@ server <- function(input, output, session) {
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(is_selected, feature_value) %>%
       (function(input_data)
-        plot_ly() %>%
+        plot_ly(source='event_source') %>%
+        event_register('plotly_relayout') %>%
         layout(paper_bgcolor=panel_background_rgb,
                showlegend=FALSE,
                scene=list(xaxis=list(visible=FALSE),
@@ -573,7 +581,8 @@ server <- function(input, output, session) {
       mutate(text=sprintf(fmt='Cluster: %s', cluster_id)) %>%
       arrange(is_selected, cluster_id) %>%
       (function(input_data)
-        plot_ly() %>%
+        plot_ly(source='event_source') %>%
+        event_register('plotly_relayout') %>%
         layout(paper_bgcolor=panel_background_rgb,
                showlegend=FALSE,
                scene=list(xaxis=list(visible=FALSE),
@@ -703,6 +712,23 @@ server <- function(input, output, session) {
 
     ### draw the grid
     grid.draw(gg)}, bg='transparent')
+
+  ## tie scenes of 3d plots together
+  ### make proxy connections to outputs
+  feature_scatterplot_3d.proxy <- plotlyProxy(outputId='feature_scatterplot_3d', session=session, deferUntilFlush=TRUE)
+  cluster_scatterplot_3d.proxy <- plotlyProxy(outputId='cluster_scatterplot_3d', session=session, deferUntilFlush=TRUE)
+
+  observe({
+    input_match_scenes_3d_plotly <- input_match_scenes_3d_plotly()
+    if(!input_match_scenes_3d_plotly)
+     return(NULL)
+
+    #### get the scene
+    plot_scene <- event_data(source='event_source', event='plotly_relayout', session=session)
+
+    #### update both plots
+    plotlyProxyInvoke(p=feature_scatterplot_3d.proxy, method='relayout', plot_scene)
+    plotlyProxyInvoke(p=cluster_scatterplot_3d.proxy, method='relayout', plot_scene)})
 }
 
 # start the app
