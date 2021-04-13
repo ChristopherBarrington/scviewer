@@ -1,33 +1,17 @@
-title: Single cell transcriptome atlases of the developing mouse and human spinal cord
-initial_feature: SOX2
+title: scRNA-seq of opossum embryo organogenesis
+initial_feature: IGFBP2
 datasets:
-  Human:
-    config:
-      initial_feature: SOX2
-    All cells:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human.h5
-    CNS:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_neural.h5
-    CNS progenitors:
-      config:
-        initial_feature: OLIG2
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_progenitor.h5
-    CNS neurons:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_neuron.h5
-    PNS:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/human_peripheral.h5
-  Mouse:
-    config:
-      initial_feature: Sox2
-    All cells:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse.h5
-    CNS:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_neural.h5
-    CNS progenitors:
-      config:
-        initial_feature: Olig2
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_progenitor.h5
-    CNS neurons:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_neuron.h5
-    PNS:
-      file: /Volumes/babs/www/shiny/barrinc/scv/data/mouse_peripheral.h5
+  Integrated:
+    Opossum:
+      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/opossum.h5
+    E10.5:
+      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E105.h5
+  Replicates:
+    E8.5:
+      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E85_all.h5
+    E9.5:
+      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E95_all.h5
+    E10.5 anterior:
+      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E105_anterior.h5
+    E10.5 posterior:
+      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E105_posterior.h5
