@@ -528,10 +528,9 @@ server <- function(input, output, session) {
 
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
-    cell_colour_variable <- cluster_variable()
     input_point_size <- input_point_size()
 
-    cluster_idents <- metadata %>% pluck(cell_colour_variable) %>% levels()
+    cluster_idents <- metadata %>% pluck('cluster_id') %>% levels()
     n_clusters <- cluster_idents %>% length()
 
     # make a colour scale to match the plotly 3D version
@@ -541,10 +540,9 @@ server <- function(input, output, session) {
 
     data.frame(reduction_coords, metadata) %>%
       mutate_(is_selected=formatted_cell_filter) %>%
-      rename(.id=cell_colour_variable) %>%
-      arrange(is_selected, .id) %>%
+      arrange(is_selected, cluster_id) %>%
       {ggplot(data=.) +
-       aes(x=x, y=y, colour=.id, alpha=is_selected) +
+       aes(x=x, y=y, colour=cluster_id, alpha=is_selected) +
        labs(title='Cell clusters', subtitle=sprintf(fmt='n=%s, N=%s', {sum(.$is_selected) %>% comma()}, {nrow(.) %>% comma()})) +
        geom_point(size=input_point_size) +
        guides(colour=guide_legend(override.aes=list(size=2))) +
@@ -569,13 +567,11 @@ server <- function(input, output, session) {
 
     metadata <- isolate(app_data$metadata)
     reduction_coords %<>% pluck('d3')
-    cell_colour_variable <- cluster_variable()
 
     data.frame(reduction_coords, metadata) %>%
       mutate_(is_selected=formatted_cell_filter) %>%
-      rename(.id=cell_colour_variable) %>%
-      mutate(text=sprintf(fmt='Cluster: %s', .id)) %>%
-      arrange(is_selected, .id) %>%
+      mutate(text=sprintf(fmt='Cluster: %s', cluster_id)) %>%
+      arrange(is_selected, cluster_id) %>%
       (function(input_data)
         plot_ly() %>%
         layout(paper_bgcolor=panel_background_rgb,
@@ -596,7 +592,7 @@ server <- function(input, output, session) {
                displayModeBar=TRUE) %>%
         add_markers(data=filter(input_data, is_selected),
                     x=~x, y=~y, z=~z,
-                    color=~.id, colors='Dark2',
+                    color=~cluster_id, colors='Dark2',
                     text=~text,
                     marker=list(symbol='circle-dot',
                                 size=input_point_size*2,
@@ -605,7 +601,7 @@ server <- function(input, output, session) {
                     hoverinfo='text') %>%
         add_markers(data=filter(input_data, !is_selected),
                     x=~x, y=~y, z=~z,
-                    color=~.id, colors='Dark2',
+                    color=~cluster_id, colors='Dark2',
                     text=~text,
                     marker=list(symbol='circle-dot',
                                 size=input_point_size*2,
