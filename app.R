@@ -108,7 +108,7 @@ dashboardSidebar(disable=FALSE,
                                selected='viridis:plasma:f', textColor=rgb(red=0, green=0, blue=0, alpha=0),
                                pickerOpts=list(`live-search`=FALSE, size=10))},
                  sliderInput(inputId='point_size', label='Size of cells', min=0.3, max=1.5, step=0.05, value=1.0),
-                 prettySwitch(inputId='match_scenes_3d_plotly', label='Match 3D plot layouts (slower)', value=FALSE, status='success', fill=TRUE)) -> ui_sidebar
+                 prettySwitch(inputId='match_scenes_3d_plotly', label='Match 3D plot layouts', value=FALSE, status='success', fill=TRUE)) -> ui_sidebar
 
 ## main body, plots
 dashboardBody(shinyDashboardThemes(theme='grey_light'),
