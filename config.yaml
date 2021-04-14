@@ -3,15 +3,15 @@ initial_feature: IGFBP2
 datasets:
   Integrated:
     Opossum:
-      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/opossum.h5
+      file: data/opossum.h5
     E10.5:
-      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E105.h5
+      file: data/E105.h5
   Replicates:
     E8.5:
-      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E85_all.h5
+      file: data/E85_all.h5
     E9.5:
-      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E95_all.h5
+      file: data/E95_all.h5
     E10.5 anterior:
-      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E105_anterior.h5
+      file: data/E105_anterior.h5
     E10.5 posterior:
-      file: /Volumes/babs/working/barrinc/projects/turnerj/sergio.menchero/scRNA_seq_of_opossum_embryo_organogenesis/reporting/distill/scviewer/data/E105_posterior.h5
+      file: data/E105_posterior.h5
