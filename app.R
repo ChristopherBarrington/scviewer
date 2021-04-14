@@ -189,6 +189,19 @@ server <- function(input, output, session) {
       pluck('datasets', dataset_selection$L1, dataset_selection$L2, 'file') %T>%
       (. %>% sprintf(fmt='(app_data) h5_file: %s') %>% log_message(prepend='+++')) -> h5_file
 
+    #### render error message if h5_file is not found, don't carry on
+    if(h5_file %>% file.exists() %>% not()) {
+      sprintf(fmt='(add_data) h5_file does not exist! Error!') %>% log_message(prepend='!!!')
+      sendSweetAlert(session=session,
+                     title='Error reading dataset!',
+                     text=tags$span('Please check the', tags$code('file'), 'attribute(s) in ', tags$code('config.yaml'), tags$br(), tags$br(),
+                                    'The following file could not be found:', tags$br(), tags$code(h5_file)),
+                     html=TRUE,
+                     type='error', closeOnClickOutside=FALSE, btn_colors='#F27474')
+
+      return(NULL)
+    }
+
     #### get the initial feature from the config file
     get_config_values(app_config, 'initial_feature') %>%
       get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default')) %T>%
@@ -369,11 +382,10 @@ server <- function(input, output, session) {
     debounce(500) -> formatted_cell_filter
 
   ## on startup, show reminder to load a dataset
-  sendSweetAlert(
-    session=session,
-    title='Getting started',
-    text='Select a dataset to view using the "Datasets" dropdown',
-    type='info')
+  sendSweetAlert(session=session,
+                 title='Getting started',
+                 text='Select a dataset to view using the "Datasets" dropdown',
+                 type='info')
 
   ## common elements
   ### background colour of plot panles
@@ -612,6 +624,9 @@ server <- function(input, output, session) {
   ## make cluster/feature signal barplot
   output$grouped_feature_values_barplot <- renderPlot({
     log_message('(output$grouped_feature_values_barplot) making feature barplot')
+
+    req(app_data())
+    req(selected_feature())
 
     app_data <- app_data()
     selected_feature <- selected_feature()
