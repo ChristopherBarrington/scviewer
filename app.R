@@ -58,14 +58,8 @@ dashboardHeader(disable=FALSE,
 
 ## sidebar
 dashboardSidebar(disable=FALSE,
-                 tags$script("$(document).on('shiny:busy', function() {
-                   var currentdate = new Date(); 
-                   var msg = '+++ shiny:busy: ' + currentdate.getHours().toString().padStart(2, '0') + ':' + currentdate.getMinutes().toString().padStart(2, '0') + ':' + currentdate.getSeconds().toString().padStart(2, '0');
-                   console.log(msg);});"),
-                 tags$script("$(document).on('shiny:idle', function() {
-                   var currentdate = new Date(); 
-                   var msg = '--- shiny:idle: ' + currentdate.getHours().toString().padStart(2, '0') + ':' + currentdate.getMinutes().toString().padStart(2, '0') + ':' + currentdate.getSeconds().toString().padStart(2, '0');
-                   console.log(msg);});"),
+                 tags$head(tags$link(rel='shortcut icon', href='https://www.crick.ac.uk/themes/custom/crick/favicons/favicon.ico'),
+                           includeHTML(app_config$tracker)),
                  tags$style(type='text/css', '.sidebar-toggle {visibility: hidden !important;}'),
                  tags$style(type='text/css', '.main-header .logo {text-align:left !important; background: #455a64 !important; color: rgba(255, 255, 255, 0.8) !important}'),
                  tags$style(type='text/css', '.main-header .logo:hover {color: white !important}'),
@@ -73,7 +67,8 @@ dashboardSidebar(disable=FALSE,
                  tags$style(type='text/css', 'i.fa.fa-home {color: rgba(255, 255, 255, 0.8) !important; font-size: larger !important;}'),
                  tags$style(type='text/css', '.irs-grid-text {visibility: hidden !important;}'),
                  tags$style(type='text/css', '.autocomplete-items div:hover {background-color: #DDDDDD;}'),
-                 tags$head(tags$link(rel='shortcut icon', href='https://www.crick.ac.uk/themes/custom/crick/favicons/favicon.ico')),
+
+
                  selectizeInput(inputId='filename', label='Select a dataset', choices=dataset_choices,
                                 options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
                  autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),

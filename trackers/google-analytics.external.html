@@ -1,0 +1,26 @@
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-B6YDV1BC7X"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-B6YDV1BC7X');
+
+  $(document).on('change', 'select#filename', function(e) {
+    // console.log(e.currentTarget.value);
+    gtag('event', document.title, {'selected dataset': e.currentTarget.value});});
+
+  $(document).on('change', 'input#feature', function(e) {
+    // console.log(e.currentTarget.value);
+    gtag('event', document.title, {'selected feature': e.currentTarget.value});});
+
+  $(document).on('change', 'select#reduction_method', function(e) {
+    // console.log(e.currentTarget.value);
+    gtag('event', document.title, {'selected reduction method': e.currentTarget.value});});
+
+  $(document).on('change', 'select#predefined_palette', function(e) {
+    // console.log(e.currentTarget.value);
+    gtag('event', document.title, {'selected palette': e.currentTarget.value});});
+
+</script>
