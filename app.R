@@ -28,13 +28,24 @@ library(magrittr)
 library(tidyverse)
 
 if(packageVersion('dqshiny') < '0.0.5')
-    packageVersion('dqshiny') %>% sprintf(fmt='!!! dqshiny version 0.0.5 is required but %s was loaded!') %>% stop()
+  packageVersion('dqshiny') %>% sprintf(fmt='!!! dqshiny version 0.0.5 is required but %s was loaded!') %>% stop()
 
-message('/// ----- ----- ----- ----- -----')
-str_c('/// started at:', date(), sep=' ') %>% message()
 options(warn=-1,
         dplyr.summarise.inform=FALSE,
         scviewer.verbose=FALSE)
+
+# define any app-wide helper functions
+## send log messages to screen/log file
+log_message <- function(...)
+  invisible()
+
+if(getOption(x='scviewer.verbose', default=FALSE))
+  log_message <- function(text, prepend='///')
+    str_c(prepend, {Sys.time() %>% format('%H:%M:%S')}, text, sep=' ') %>%
+      message()
+
+log_message('----- ----- ----- ----- -----') 
+sprintf(fmt='started at: %s', date()) %>% log_message()
 
 # load the project description configuration file
 app_config <- yaml::read_yaml(file='config.yaml')
@@ -143,10 +154,6 @@ server <- function(input, output, session) {
       na.omit() %>%
       head(n=1) %>%
       unname()
-
-  log_message <- function(text, prepend='///')
-    str_c(prepend, {Sys.time() %>% format('%H:%M:%S')}, text, sep=' ') %>%
-      message()
 
   preferred_choice <- function(x, preferences, default=1) {
     if(length(x)==0)
@@ -271,8 +278,6 @@ server <- function(input, output, session) {
          h5_file=h5_file,
          cell_filter_parameters=cell_filter_parameters,
          dataset_key=input_dataset_key)}) -> app_data
-
-  observe(x={if(getOption('scviewer.verbose', default=FALSE)) reactiveValuesToList(app_data) %>% lapply(head) %>% print()})
 
   ### collect the user-specified feature name
   reactive(x={
