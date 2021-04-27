@@ -174,6 +174,7 @@ cell_filter_parameters <- list()
 if(Project(seurat) %>% is_in(c('E105', 'opossum')))
   cell_filter_parameters %<>% append(list(`Constituent datasets`=list(var='datasets_filter')))
 h5write(obj=cell_filter_parameters, file=h5_file, name='cell_filter_parameters')
+```
 
 ### Cell clusters
 
