@@ -232,7 +232,7 @@ server <- function(input, output, session) {
                               options=all_features,
                               value=initial_feature)
 
-    ##### dimension reduction method
+    ##### dimension reduction methods
     reduction_names <- c(umap='UMAP', tsne='tSNE', pca='PCA')
     
     names(reductions) %>%
@@ -259,17 +259,15 @@ server <- function(input, output, session) {
       metadata_list$data %<>% mutate(monocluster=factor('All cells'))
     }
 
-    default_cluster_identity_set <- 1
-    default_cluster_identity_name <- cluster_identity_sets[[default_cluster_identity_set]]$name
-    default_cluster_identity_var <- cluster_identity_sets[[default_cluster_identity_set]]$var
-    n_cluster_identity_sets <- length(cluster_identity_sets)
-
+    cluster_identity_sets %>% pluck(1, 'name') -> default_cluster_identity_name 
+    cluster_identity_sets %>% length() -> n_cluster_identity_sets
+    cluster_identity_sets %>% lapply(pluck, 'name') %>% {set_names(names(.), unlist(.))} -> cluster_identity_sets_choices
 
     ###### if there is more than one cluster set, add a picker for them
     removeUI(selector='#cluster_set_filter', immediate=TRUE) # clear UI elements that are already drawn
     removeUI(selector='#cluster_identitites_filter', immediate=TRUE) # clear UI elements that are already drawn
     pickerInput(inputId='cluster_identity_set_index', label='Cluster identity sets',
-                choices={lapply(cluster_identity_sets, pluck, 'name') %>% {set_names(names(.), unlist(.))}}, selected=default_cluster_identity_name,
+                choices=cluster_identity_sets_choices, selected=default_cluster_identity_name,
                 options=list(`actions-box`=TRUE, size=9),
                 multiple=FALSE) %>%
       (function(p) if(n_cluster_identity_sets==1) hidden(p) else p) %>%
