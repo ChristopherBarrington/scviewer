@@ -1,6 +1,6 @@
 title: scRNA-seq of opossum embryo organogenesis
 initial_feature: IGFBP2
-tracker: trackers/google-analytics.test.html
+tracker: trackers/untracked.html
 datasets:
   Integrated:
     Opossum:
