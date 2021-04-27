@@ -47,8 +47,12 @@ if(getOption(x='scviewer.verbose', default=FALSE))
 log_message('----- ----- ----- ----- -----') 
 sprintf(fmt='started at: %s', date()) %>% log_message()
 
+
+
 # load the project description configuration file
 app_config <- yaml::read_yaml(file='config.yaml')
+
+
 
 ## define the dataset choices from the config file; make a nested list of L1/L2 with L1$L2 as the value
 map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file') %>%
@@ -58,6 +62,8 @@ map_depth(.x=app_config$datasets, .depth=2, .f=pluck, 'file') %>%
   mutate_if(is.factor, as.character) %>%
   plyr::dlply(~.id, plyr::dlply, ~name, pluck, 'key') -> dataset_choices
 
+
+
 # define the UI
 ## header
 dashboardHeader(disable=FALSE,
@@ -66,6 +72,8 @@ dashboardHeader(disable=FALSE,
                           icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer'),
                         class='dropdown'),
                 titleWidth='1000px') -> ui_header
+
+
 
 ## sidebar
 dashboardSidebar(disable=FALSE,
@@ -118,6 +126,8 @@ dashboardSidebar(disable=FALSE,
                  sliderInput(inputId='point_size', label='Size of cells', min=0.3, max=1.5, step=0.05, value=1.0),
                  prettySwitch(inputId='match_scenes_3d_plotly', label='Match 3D plot layouts', value=FALSE, status='success', fill=TRUE)) -> ui_sidebar
 
+
+
 ## main body, plots
 dashboardBody(shinyDashboardThemes(theme='grey_light'),
               fillPage(use_waiter(), #waiter_on_busy(html=tagList(spin_atebits()), color=rgb(red=1, green=1, blue=1, alpha=0.5)),
@@ -134,8 +144,12 @@ dashboardBody(shinyDashboardThemes(theme='grey_light'),
                                       plotlyOutput('feature_scatterplot_3d', height='100%')),
                                plotOutput('grouped_feature_values_barplot', height='100%')))) -> ui_body
 
+
+
 ## bring elements together into the app ui
 dashboardPage(header=ui_header, sidebar=ui_sidebar, body=ui_body, title=NULL) -> ui
+
+
 
 # define the server
 server <- function(input, output, session) {
@@ -150,12 +164,16 @@ server <- function(input, output, session) {
       set_names(str_remove, pattern='\\$config') %>%
       mutate_all(as.character)
 
+
+
   get_prioritised_value <- function(values, priority)
     priority %>%
       sapply(pluck, .x=values, .default=NA, simplify=TRUE) %>%
       na.omit() %>%
       head(n=1) %>%
       unname()
+
+
 
   preferred_choice <- function(x, preferences, default=1) {
     if(length(x)==0)
@@ -172,15 +190,15 @@ server <- function(input, output, session) {
       head(n=1)
   }
 
+
+
   ## get UI inputs
   ### load the dataset file
-  initialised <- reactiveValues()
   reactive(x={
     req(input$filename)
 
-    input_dataset_key <- input$filename
-
-    sprintf(fmt='(app_data) initialising from: %s', input_dataset_key) %>% log_message()
+    input$filename %T>%
+      (. %>% sprintf(fmt='(app_data) initialising from: %s') %>% log_message()) -> input_dataset_key
 
     #### parse dropdown key to give levels 1 and 2 from the datasets key of the yaml config
     input_dataset_key %>%
@@ -230,7 +248,7 @@ server <- function(input, output, session) {
     all_features <- h5read(file=h5_file, name='features/names')
     update_autocomplete_input(session=session, id='feature',
                               options=all_features,
-                              value=initial_feature)
+                              value=initial_feature) # put the features in the text input ui element
 
     ##### dimension reduction methods
     reduction_names <- c(umap='UMAP', tsne='tSNE', pca='PCA')
@@ -238,23 +256,22 @@ server <- function(input, output, session) {
     names(reductions) %>%
       str_remove('_3d$') %>%
       unique() %>%
-      set_names() -> reductions_available
+      set_names() -> available_reductions
     
-    reductions_available %>%
+    available_reductions %>%
       as.list() %>%
       set_names(function(x) magrittr::extract(reduction_names, x)) -> reduction_choices
     
-    reductions_available %>%
-      preferred_choice(preferences=names(reduction_names), default=1) -> reduction_selected
+    available_reductions %>%
+      preferred_choice(preferences=names(reduction_names), default=1) -> selected_reduction
 
     updateSelectInput(session=session, inputId='reduction_method',
-                      choices=reduction_choices, selected=reduction_selected)
+                      choices=reduction_choices, selected=selected_reduction) # update the reduction methods ui element
 
     ##### cell cluster idents
     cluster_identity_sets <- tryCatch(h5read(file=h5_file, name='cluster_identity_sets'), error=function(...) NULL)
 
-    if(is.null(cluster_identity_sets)) {
-      ###### if there are no cluster sets, make a dummy one
+    if(is.null(cluster_identity_sets)) { # if there are no cluster sets, make a dummy one
       cluster_identity_sets <- list(monocluster=list(var='monocluster', name='monocluster', selected='All cells'))
       metadata_list$data %<>% mutate(monocluster=factor('All cells'))
     }
@@ -277,14 +294,14 @@ server <- function(input, output, session) {
     ##### create the filter UI elements
     removeUI(selector='#all_filters', immediate=TRUE) # clear any filter UI elements that are already drawn
     tryCatch(h5read(file=h5_file, name='cell_filter_parameters'), error=function(...) NULL) %>%
-      lapply(function(x) modifyList(x=x, val=list(inputId=str_c(x$var, stri_rand_strings(n=1, length=5), sep='.')))) -> cell_filter_parameters
+      lapply(function(x) modifyList(x=x, val=list(inputId=str_c(x$var, stri_rand_strings(n=1, length=5), sep='.')))) -> cell_filter_parameters # provide an inputId for each filtering element
 
     cell_filter_parameters %>%
       lapply(pluck, 'inputId') %>%
       unlist() %>%
       str_c(collapse=', ') %>%
       sprintf(fmt='(app_data) creating filter UI elements for: %s') %>%
-      log_message(prepend='+++')
+      log_message(prepend='+++') # send a log message
 
     cell_filter_parameters %>%
       Map(params=., label=names(.), function(params, label)
@@ -296,7 +313,7 @@ server <- function(input, output, session) {
                       options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>1'),
                       multiple=TRUE)) %>%
       tags$div(id='all_filters') %>%
-      insertUI(selector='#filters', where='afterBegin', immediate=TRUE, session=session)
+      insertUI(selector='#filters', where='afterBegin', immediate=TRUE, session=session) # make a pickerInput for each filtering element and put it after the filters div
 
     #### add to reactive values list
     list(initial_feature=initial_feature,
@@ -306,6 +323,8 @@ server <- function(input, output, session) {
          cell_filter_parameters=cell_filter_parameters,
          cluster_identity_sets=cluster_identity_sets,
          dataset_key=input_dataset_key)}) -> app_data
+
+
 
   ### collect the user-specified feature name
   reactive(x={
@@ -334,6 +353,8 @@ server <- function(input, output, session) {
     list(name=input_feature,
          values=feature_values)}) -> selected_feature
 
+
+
   ### collect the colour scale limits
   reactive(x={
     req(input$feature_value_limits)
@@ -349,6 +370,8 @@ server <- function(input, output, session) {
     list(min=feature_value_limits[1],
          max=feature_value_limits[2],
          limits=feature_value_limits)}) -> input_feature_value_limits
+
+
 
   ### collect the reduction method
   reactive(x={
@@ -368,11 +391,15 @@ server <- function(input, output, session) {
     reductions[c(name_2d, name_3d)] %>%
       purrr::set_names(c('d2','d3'))}) -> reduction_coords
 
+
+
   ### collect the point size and reduce reactivity
   reactive(x={
     input$point_size %T>%
       (. %>% sprintf(fmt='(input_point_size) set point_size [%s]') %>% log_message())}) %>%
     debounce(500) -> input_point_size
+
+
 
   ### collect the input whether to tie scenes of 3d plots together
   reactive(x={
@@ -380,12 +407,16 @@ server <- function(input, output, session) {
       (. %>% sprintf(fmt='(input_match_scenes_3d_plotly) set match_scenes_3d_plotly [%s]') %>% log_message())}) %>%
     debounce(500) -> input_match_scenes_3d_plotly
 
+
+
   ### collect input for cluster set to display
   reactive(x={
     req(input$cluster_identity_set_index)
     input$cluster_identity_set_index %T>%
       (. %>% sprintf(fmt='(cluster_identity_set_index) set cluster_identity_set_index [%s]') %>% log_message())}) %>%
     debounce(500) -> input_cluster_identity_set_index
+
+
 
   #### if cluster set is changed, update the cluster id selector
   observeEvent(eventExpr=input$cluster_identity_set_index, handlerExpr={
@@ -408,12 +439,16 @@ server <- function(input, output, session) {
       tags$div(id='cluster_identitites_filter') %>%
       insertUI(selector='#cluster_identities', where='afterBegin', immediate=TRUE, session=session)})
 
+
+
   ### collect the cluster identities to filter
   reactive(x={
     req(input$cluster_identities)
     input$cluster_identities %T>%
       (. %>% length() %>% sprintf(fmt='(cluster_identities) set selected %s clusters') %>% log_message())}) %>%
     debounce(500) -> input_cluster_identities
+
+
 
   ### collect the selected colour palette
   reactive(x={
@@ -427,6 +462,8 @@ server <- function(input, output, session) {
       as.list() %>%
       purrr::set_names(c('package', 'name', 'type')) %>%
       append(list(direction={.$type %>% switch(f=1, r=-1)}))}) -> selected_palette
+
+
 
   ### collect the cell filtering values
   reactive(x={
@@ -460,21 +497,29 @@ server <- function(input, output, session) {
         log_message(prepend='+++')}) %>%
     debounce(500) -> formatted_cell_filter
 
+
+
   ## on startup, show reminder to load a dataset
   sendSweetAlert(session=session,
                  title='Getting started',
                  text='Select a dataset to view using the "Datasets" dropdown',
                  type='info')
 
+
+
   ## common elements
   ### background colour of plot panles
   panel_background_rgb <- rgb(red=1, green=1, blue=1, alpha=0)
+
+
 
   ### plotly configurations
   plotly_config <- list(modebar=list())
   list(activecolor='#66965a',
        color='lightgrey',
        bgcolor='transparent') -> plotly_config$modebar
+
+
 
   ## make selected feature scatterplots
   ### 2D ggplot
@@ -541,7 +586,9 @@ server <- function(input, output, session) {
              panel.background=element_rect(fill=panel_background_rgb, colour=NA),
              text=element_text(size=14))}}, bg='transparent')
 
-  # ### 3D plotly
+
+
+  ### 3D plotly
   output$feature_scatterplot_3d <- renderPlotly({
     log_message('(output$feature_scatterplot_3d) making 3d feature scatterplot')
 
@@ -621,6 +668,8 @@ server <- function(input, output, session) {
                     hoverinfo='text') %>%
         hide_colorbar())})
 
+
+
   ## make cluster identity scatterplots
   ### 2D ggplot
   output$cluster_scatterplot <- renderPlot({
@@ -666,6 +715,8 @@ server <- function(input, output, session) {
              panel.background=element_rect(fill=panel_background_rgb, colour=NA),
              panel.border=element_rect(fill=NA, colour=NA),
              text=element_text(size=14))}}, bg='transparent')
+
+
 
   ### 3D plotly
   output$cluster_scatterplot_3d <- renderPlotly({
@@ -726,6 +777,8 @@ server <- function(input, output, session) {
                                 opacity=0.05,
                                 line=list(width=0)),
                     hoverinfo='text'))})
+
+
 
   ## make cluster/feature signal barplot
   output$grouped_feature_values_barplot <- renderPlot({
@@ -808,8 +861,8 @@ server <- function(input, output, session) {
 
     ### modify the (rotated) y-axis label grobs so the text is coloured to match the cluster_id of the scatterplot(s)
     #### get names of cluster identities (y-axis labels) in plot
-    cluster_idents <- metadata %>% pluck(cluster_identity_set_var) %>% levels()
-    n_clusters <- cluster_idents %>% length()
+    metadata %>% pluck(cluster_identity_set_var) %>% levels() -> cluster_idents
+    cluster_idents %>% length() -> n_clusters
 
     #### get locations of grobs to modify in the gtable
     gg_left_axis <- gg$layout$name %>% str_which('axis-l')
@@ -831,12 +884,14 @@ server <- function(input, output, session) {
     ### draw the grid
     grid.draw(gg)}, bg='transparent')
 
+
+
   ## tie scenes of 3d plots together
   ### make proxy connections to outputs
   feature_scatterplot_3d.proxy <- plotlyProxy(outputId='feature_scatterplot_3d', session=session, deferUntilFlush=TRUE)
   cluster_scatterplot_3d.proxy <- plotlyProxy(outputId='cluster_scatterplot_3d', session=session, deferUntilFlush=TRUE)
 
-  observe({
+  observe(x={
     input_match_scenes_3d_plotly <- input_match_scenes_3d_plotly()
     if(!input_match_scenes_3d_plotly)
      return(NULL)
@@ -849,7 +904,11 @@ server <- function(input, output, session) {
     plotlyProxyInvoke(p=cluster_scatterplot_3d.proxy, method='relayout', plot_scene)})
 }
 
+
+
 # start the app
 shinyApp(ui, server)
+
+
 
 # https://github.com/plotly/plotly.js/blob/master/src/plot_api/plot_config.js
