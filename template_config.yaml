@@ -1,6 +1,6 @@
 title: An informative project title to go in the header
 initial_feature: a feature in the matrix
-tracker: trackers/google-analytics.test.html
+tracker: trackers/untracked.html
 datasets:
   dropdown group 1:
     config:
