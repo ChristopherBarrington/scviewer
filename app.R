@@ -402,10 +402,8 @@ server <- function(input, output, session) {
     app_data$cluster_identity_sets %>%
       pluck(cluster_identity_set_index, 'selected') -> selected_cluster_identities
 
-    #### remove any existing picker
-    removeUI(selector='#cluster_identitites_filter', immediate=TRUE) # clear UI elements that are already drawn
-
     #### create a picker for the cluster idents
+    removeUI(selector='#cluster_identitites_filter', immediate=TRUE) # clear UI elements that are already drawn
     pickerInput(inputId='cluster_identities', label='Cluster identities',
                 choices=cluster_identities, selected=selected_cluster_identities,
                 options=list(`actions-box`=TRUE, size=9, `selected-text-format`='count>1'),
