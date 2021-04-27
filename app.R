@@ -324,7 +324,7 @@ server <- function(input, output, session) {
 
 
 
-  ### collect the user-specified feature name
+  ### collect the user-specified feature
   reactive(x={
     app_data <- app_data()
 
@@ -339,10 +339,10 @@ server <- function(input, output, session) {
     h5_name <- input_feature %>% str_to_lower() %>% sprintf(fmt='features/values/%s')
     feature_values <- h5read(file=h5_file, name=h5_name)
      
-    slider_min <- min(feature_values) %>% subtract(0.05) %>% round(digits=1)
-    slider_max <- max(feature_values) %>% add(0.05) %>% round(digits=1)
+    feature_values %>% min() %>% subtract(0.05) %>% round(digits=1) -> slider_min
+    feature_values %>% max() %>% add(0.05) %>% round(digits=1) -> slider_max
 
-    sprintf('(selected_feature) setting value limits for %s to [%s]', input_feature, str_c(slider_min, slider_max, sep=',')) %>% log_message()
+    sprintf('(selected_feature) setting value limits for %s to [%s]', input_feature, str_c(slider_min, slider_max, sep=',')) %>% log_message(prepend='+++')
  
     updateSliderInput(session=session, inputId='feature_value_limits',
                       min=slider_min, max=slider_max,
@@ -532,9 +532,7 @@ server <- function(input, output, session) {
     selected_palette <- selected_palette()
     cluster_identity_set_index <- input_cluster_identity_set_index()
 
-    app_data$cluster_identity_sets %>%
-      pluck(cluster_identity_set_index) %>%
-      pluck('var') -> cluster_identity_set_var
+    app_data$cluster_identity_sets %>% pluck(cluster_identity_set_index, 'var') -> cluster_identity_set_var
 
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
@@ -599,10 +597,8 @@ server <- function(input, output, session) {
     input_point_size <- input_point_size()
     cluster_identity_set_index <- input_cluster_identity_set_index()
 
-    app_data$cluster_identity_sets %>%
-      pluck(cluster_identity_set_index) %>%
-      pluck('var') -> cluster_identity_set_var
-    
+    app_data$cluster_identity_sets %>% pluck(cluster_identity_set_index, 'var') -> cluster_identity_set_var
+
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d3')
     feature_values <- selected_feature$values
@@ -683,9 +679,7 @@ server <- function(input, output, session) {
     reduction_coords %<>% pluck('d2')
     input_point_size <- input_point_size()
 
-    app_data$cluster_identity_sets %>%
-      pluck(cluster_identity_set_index) %>%
-      pluck('var') -> cluster_identity_set_var
+    app_data$cluster_identity_sets %>% pluck(cluster_identity_set_index, 'var') -> cluster_identity_set_var
 
     metadata %<>% mutate_(cluster_id=cluster_identity_set_var)
     cluster_idents <- metadata %>% pluck('cluster_id') %>% levels()
@@ -726,9 +720,7 @@ server <- function(input, output, session) {
     formatted_cell_filter <- formatted_cell_filter()
     cluster_identity_set_index <- input_cluster_identity_set_index()
 
-    app_data$cluster_identity_sets %>%
-      pluck(cluster_identity_set_index) %>%
-      pluck('var') -> cluster_identity_set_var
+    app_data$cluster_identity_sets %>% pluck(cluster_identity_set_index, 'var') -> cluster_identity_set_var
 
     metadata <- isolate(app_data$metadata)
     reduction_coords %<>% pluck('d3')
@@ -794,9 +786,7 @@ server <- function(input, output, session) {
 
     metadata <- app_data$metadata
 
-    app_data$cluster_identity_sets %>%
-      pluck(cluster_identity_set_index) %>%
-      pluck('var') -> cluster_identity_set_var
+    app_data$cluster_identity_sets %>% pluck(cluster_identity_set_index, 'var') -> cluster_identity_set_var
 
     feature_values <- selected_feature$values
     feature_name <- selected_feature$name
