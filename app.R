@@ -387,18 +387,16 @@ server <- function(input, output, session) {
       (. %>% sprintf(fmt='(cluster_identity_set_index) set cluster_identity_set_index [%s]') %>% log_message())}) %>%
     debounce(500) -> input_cluster_identity_set_index
 
-  ### if cluster set is changed, update the cluster id selector
+  #### if cluster set is changed, update the cluster id selector
   observeEvent(eventExpr=input$cluster_identity_set_index, handlerExpr={
     # collect input reactives
     app_data <- app_data()
     cluster_identity_set_index <- input$cluster_identity_set_index
 
     # define variables for function
-    cluster_identities <- app_data$metadata %>% pluck(cluster_identity_set_index) %>% levels()
-    n_cluster_identities <- length(cluster_identities)
-    
-    app_data$cluster_identity_sets %>%
-      pluck(cluster_identity_set_index, 'selected') -> selected_cluster_identities
+    app_data$metadata %>% pluck(cluster_identity_set_index) %>% levels() -> cluster_identities
+    cluster_identities %>% length() -> n_cluster_identities
+    app_data$cluster_identity_sets %>% pluck(cluster_identity_set_index, 'selected') -> selected_cluster_identities
 
     #### create a picker for the cluster idents
     removeUI(selector='#cluster_identitites_filter', immediate=TRUE) # clear UI elements that are already drawn
