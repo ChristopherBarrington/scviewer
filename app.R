@@ -232,8 +232,6 @@ server <- function(input, output, session) {
 
     #### load metadata table
     metadata_list <- h5read(file=h5_file, name='metadata')
-    if(is.null(metadata_list$data$cell_filter))
-      metadata_list$data %<>% add_column(cell_filter=factor('No filtering'))
 
     ##### for each would-be-factor variable in metadata_list$data, update the factor levels using metadata_list$factor_levels
     for(i in names(metadata_list$factor_levels))
