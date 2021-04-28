@@ -294,4 +294,4 @@ Ignore the `tracker`.
 
 # Running scviewer
 
-The `scviewer.R` (renamed to `app.R`) and `config.yaml` files should be saved in the same directory and visited in a web browser. It's a `shiny` app after all.
+Clone this repository with `git clone git@github.com:ChristopherBarrington/scviewer.git my_project` and edit the `config.yaml` (but don't rename it!). Make the directory accessible on a shiny server and visit in a web browser. It's a `shiny` app after all.
