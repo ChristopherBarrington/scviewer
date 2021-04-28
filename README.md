@@ -36,6 +36,7 @@ library(Seurat) # ...
 library(rhdf5) # to create and write h5 files
 library(magrittr)
 library(tidyverse)
+```
 
 Load the seurat object, here I use `readRDS` but any equivalent method to get an object should be fine. I also define a path into which the `h5` files should be written.
 
