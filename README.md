@@ -67,6 +67,43 @@ lapply(seurat@reductions, function(reduction)
   lapply(rownames_to_column, var='cell_id') -> reductions
 ```
 
+```R
+> lapply(reductions, head, n=2)
+$pca
+             cell_id          x        y
+1 AAACCCAAGTTAACGA-1 -0.6490665 9.609650
+2 AAAGGATAGTAGACCG-1  0.4111985 1.595257
+
+$tsne
+             cell_id          x         y
+1 AAACCCAAGTTAACGA-1 -3.0988920 -7.363438
+2 AAAGGATAGTAGACCG-1 -0.7396024  2.436722
+
+$tsne_3d
+             cell_id          x          y         z
+1 AAACCCAAGTTAACGA-1 -1.5164873 -12.311868  6.206285
+2 AAAGGATAGTAGACCG-1 -0.5401924   1.390172 -3.857753
+
+$umap
+             cell_id         x        y
+1 AAACCCAAGTTAACGA-1 -5.115594 5.735861
+2 AAAGGATAGTAGACCG-1 -4.502333 5.402456
+
+$umap_3d
+             cell_id         x         y            z
+1 AAACCCAAGTTAACGA-1 -2.235322 -5.993289 -0.109285650
+2 AAAGGATAGTAGACCG-1 -2.078960 -5.495621  0.001449766
+
+$pca_3d
+             cell_id          x        y        z
+1 AAACCCAAGTTAACGA-1 -0.6490665 9.609650 5.955356
+2 AAAGGATAGTAGACCG-1  0.4111985 1.595257 3.081175
+
+>
+```
+
+
+
 ### Feature values
 
 The values of features are extracted into a matrix and can be appended with any other numeric data. Here I append any metadata variables that start with 'GeneModule', but you can add `nCount_RNA`  or `percent.mt` or cell cycle scores etc so that they can be plotted in the viewer as a feature.
@@ -77,11 +114,29 @@ cbind({seurat@assays$RNA@data %>% Matrix::t()},
   as.matrix() -> feature_values
 ```
 
+```R
+> feature_values[1:10, 35001:35007]
+                   RBMY    RPL10Y SRY TFE3Y    THOC2Y    UBE1Y1 GeneModule example
+AAACCCAAGTTAACGA-1    0 0.0000000   0     0 0.0000000 0.0000000         -0.2393771
+AAAGGATAGTAGACCG-1    0 0.8551456   0     0 0.0000000 0.0000000         -0.2048669
+AAATGGATCGAACACT-1    0 0.5655402   0     0 0.5655402 0.0000000         -0.2683462
+AACAAAGTCCGACATA-1    0 1.0969484   0     0 0.0000000 0.6918995         -0.2023827
+AACAACCAGATCCTAC-1    0 1.6682587   0     0 0.0000000 0.0000000         -0.1074411
+AACAACCTCCGTGCGA-1    0 1.5568630   0     0 0.0000000 0.0000000         -0.1944051
+AACACACTCTCTGGTC-1    0 0.0000000   0     0 0.0000000 0.0000000         -0.2604263
+AACAGGGTCAAATAGG-1    0 0.0000000   0     0 0.0000000 0.0000000         -0.1637551
+AACCAACCATGGATCT-1    0 1.0359746   0     0 0.0000000 0.0000000         -0.1065024
+AACCTTTTCCGTGGCA-1    0 0.0000000   0     0 0.0000000 0.0000000         -0.3349746
+>
+```
+
+
+
+### Dataset metadata
+
 The metadata is extracted and subset. Any cell filters need to be defined here - these are one or more variables that can be used to determine if a cell should be displayed. The logic uses `%in%` to identify cells whose filter value is selected. In this example, I create a `dataset_filter` which reformats the `orig.ident` and adds in the number of cells in the filter. Cluster identities are defined here too, keeping any variable with the '_snn_res' string in this case. But these variables are completely flexible, any names and any content. 
 
 Keep `cell_id` in, it might be important.
-
-### Dataset metadata
 
 The filter and cluster variables are converted to factors and their levels ordered; the order of levels here is the order of the levels in the app.
 
@@ -97,8 +152,20 @@ seurat@meta.data %>%
   mutate(datasets_filter={sprintf(fmt='%s (n=%s)', datasets_filter, comma(N)) %>% factor() %>% fct_relevel({levels(.) %>% mixedsort()})}) %>%
   mutate_at(vars(contains('_snn_res.')), function(x) x %>% fct_relevel({levels(.) %>% mixedsort()})) %>%
   select(-N) -> metadata
-
 ```
+
+```R
+> metadata[1:5, 1:7] %>% as.data.frame()
+  datasets_filter            cell_id RNA_snn_res.0.2 RNA_snn_res.0.4 RNA_snn_res.0.6 RNA_snn_res.0.8 RNA_snn_res.1
+1     E85 (n=477) AAACCCAAGTTAACGA-1               0               2               1               1             1
+2     E85 (n=477) AAAGGATAGTAGACCG-1               1               0               2               2             2
+3     E85 (n=477) AAATGGATCGAACACT-1               0               1               0               0             0
+4     E85 (n=477) AACAAAGTCCGACATA-1               0               1               0               0             0
+5     E85 (n=477) AACAACCAGATCCTAC-1               0               2               1               1             1
+>
+```
+
+
 
 ### Cell clusters
 
@@ -115,6 +182,35 @@ metadata %>%
   set_names() %>%
   lapply(function(x) list(var=x, name={str_remove(x, '^\\D+') %>% sprintf(fmt='Res. %s')}, selected=levels(metadata[[x]]))) -> cluster_identity_sets
 ```
+
+```R
+> cluster_identity_sets[1:2]
+$RNA_snn_res.0.2
+$RNA_snn_res.0.2$var
+[1] "RNA_snn_res.0.2"
+
+$RNA_snn_res.0.2$name
+[1] "Res. 0.2"
+
+$RNA_snn_res.0.2$selected
+[1] "0" "1" "2"
+
+
+$RNA_snn_res.0.4
+$RNA_snn_res.0.4$var
+[1] "RNA_snn_res.0.4"
+
+$RNA_snn_res.0.4$name
+[1] "Res. 0.4"
+
+$RNA_snn_res.0.4$selected
+[1] "0" "1" "2" "3"
+
+
+>
+```
+
+
 
 ## Writing the `h5` file
 
