@@ -6,7 +6,7 @@ A lightweight single cell visualisation tool
 
 # Create an `h5` file
 
-The viewer expects all data to be saved into a propoerly-formatted `h5` file. It expects to find keys for the following:
+`scviewer` expects all datasets to be saved into a properly-formatted `h5` file with keys for the following:
 
 * `metadata/data` is a `data.frame` that contains ... metadata ... and cluster identities
 * `metadata/factor_levels` is a group that contains the `factor` levels for each factor in the metadata `data.frame`
@@ -14,7 +14,6 @@ The viewer expects all data to be saved into a propoerly-formatted `h5` file. It
   * `values` is a group that contains the values of features that are plotted (rows of a Seurat expression matrix)
   * `names` is a `vector` of feature names (`rownames` of a Seurat matrix)
   * `cell_ids` is a vector of barcodes (`colnames` of a Seurat matrix)
-
 * `reductions` is a group of `data.frame` objects with coordinates for each cell in 2D and 3D space
 * `cell_filter_parameters` is a list of metadata colums on which a filter should be permitted
 * `cluster_identity_sets` is a list of metadata variables and default identifiers that can be used to display cell clusters with different resolutions/methods etc
