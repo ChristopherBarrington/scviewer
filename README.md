@@ -102,7 +102,7 @@ seurat@meta.data %>%
 
 ### Cell clusters
 
-A list is created here that determines which cluster sets to include in the dropdown selector and which cluster identities should be shown by default. Here, I take all of the cluster sets in the metadata table and show all cluster identities by default. The final output of this chunk is a list of lists. Each index of the first-level list is named according to the metadata variable. The second-level list contains:
+A list is created that determines which cluster sets to include in the dropdown selector and which cluster identities should be shown by default. Here, I take all of the cluster sets in the metadata table and show all cluster identities by default. The final output of this chunk is a list of lists. Each index of the first-level list is named according to the metadata variable. The second-level list contains:
 
 * `var` the metadata variable
 * `name` a name for the cluster set to be shown in the dropdown - here the clustering resolution is appended to 'Res. '
