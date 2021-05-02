@@ -1,0 +1,29 @@
+Package: scviewer
+Title: A Shiny App to Display Single-Cell -Seq Datasets
+Version: 0.0.0.9001
+Authors@R: 
+    person(given='Christopher',
+           family='Barrington',
+           role=c('aut', 'cre'),
+           email='christopher.barrington@crick.ac.uk',
+           comment = c(ORCID='0000-0003-1281-2658'))
+Description: Provides a Shiny app to display single-cell datasets.
+License: What license it uses
+Encoding: UTF-8
+LazyData: true
+Depends:
+  grid,
+  rhdf5,
+  shiny,
+  dqshiny,
+  shinyWidgets,
+  shinydashboard,
+  dashboardthemes,
+  plotly,
+  RColorBrewer,
+  scales,
+  esquisse,
+  waiter,
+  stringi,
+  magrittr,
+  tidyverse
