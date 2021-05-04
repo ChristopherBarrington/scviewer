@@ -1,0 +1,13 @@
+title: A Project Title
+initial_feature: STMN2
+tracker: trackers/untracked.html
+datasets:
+  Group one:
+    Dataset 1:
+      file: h5_files/example_11.h5
+    Dataset 2:
+      file: h5_files/example_12.h5
+  Group two:
+    Dataset 1:
+      initial_feature: VIM
+      file: h5_files/example_21.h5

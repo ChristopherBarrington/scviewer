@@ -16,7 +16,7 @@ server <- function(input, output, session) {
   if(getOption('scviewer.verbose'))
     log_message <- show_log_message
 
-  app_config <- system.file('config.yaml', package='scviewer') %>% load_app_config()
+  app_config <- load_app_config('config.yaml')
 
 
   ## get UI inputs
@@ -389,7 +389,6 @@ server <- function(input, output, session) {
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
       mutate_(is_selected=formatted_cell_filter) %>%
       mutate_(cluster_id=cluster_identity_set_var) %>%
-      {print(head(.))}  %>%
       arrange(is_selected, feature_value) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=feature_value, alpha=is_selected) +
@@ -454,19 +453,19 @@ server <- function(input, output, session) {
       (function(input_data)
         plot_ly(source='event_source') %>%
         event_register('plotly_relayout') %>%
-        layout(paper_bgcolor=panel_background_rgb,
-               showlegend=FALSE,
-               scene=list(xaxis=list(visible=FALSE),
-                          yaxis=list(visible=FALSE),
-                          zaxis=list(visible=FALSE)),
-               modebar=list(orientation='v',
-                            activecolor=plotly_config$modebar$activecolor,
-                            color=plotly_config$modebar$color,
-                            bgcolor=plotly_config$modebar$bgcolor),
-               legend=list(orientation='h',
-                           xanchor='center',
-                           x=0.5),
-               hoverlabel=list(bgcolor='white')) %>%
+        plotly::layout(paper_bgcolor=panel_background_rgb,
+                       showlegend=FALSE,
+                       scene=list(xaxis=list(visible=FALSE),
+                                  yaxis=list(visible=FALSE),
+                                  zaxis=list(visible=FALSE)),
+                       modebar=list(orientation='v',
+                                    activecolor=plotly_config$modebar$activecolor,
+                                    color=plotly_config$modebar$color,
+                                    bgcolor=plotly_config$modebar$bgcolor),
+                       legend=list(orientation='h',
+                                   xanchor='center',
+                                   x=0.5),
+                       hoverlabel=list(bgcolor='white')) %>%
         config(scrollZoom=FALSE,
                displaylogo=FALSE,
                modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),
@@ -562,18 +561,18 @@ server <- function(input, output, session) {
       (function(input_data)
         plot_ly(source='event_source') %>%
         event_register('plotly_relayout') %>%
-        layout(paper_bgcolor=panel_background_rgb,
-               showlegend=FALSE,
-               scene=list(xaxis=list(visible=FALSE),
-                          yaxis=list(visible=FALSE),
-                          zaxis=list(visible=FALSE)),
-               modebar=list(orientation='v',
-                            activecolor=plotly_config$modebar$activecolor,
-                            color=plotly_config$modebar$color,
-                            bgcolor=plotly_config$modebar$bgcolor),
-               legend=list(orientation='h',
-                           xanchor='center',
-                           x=0.5)) %>%
+        plotly::layout(paper_bgcolor=panel_background_rgb,
+                       showlegend=FALSE,
+                       scene=list(xaxis=list(visible=FALSE),
+                                  yaxis=list(visible=FALSE),
+                                  zaxis=list(visible=FALSE)),
+                       modebar=list(orientation='v',
+                                    activecolor=plotly_config$modebar$activecolor,
+                                    color=plotly_config$modebar$color,
+                                    bgcolor=plotly_config$modebar$bgcolor),
+                       legend=list(orientation='h',
+                                   xanchor='center',
+                                   x=0.5)) %>%
         config(scrollZoom=FALSE,
                displaylogo=FALSE,
                modeBarButtonsToRemove=c('zoom2d', 'tableRotation', 'resetCameraLastSave3d'),

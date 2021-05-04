@@ -1,6 +1,7 @@
-
+#' @import shinydashboard
+#' 
 ui <- function() {
-  config <- system.file('config.yaml', package='scviewer') %>% load_app_config()
+  config <- load_app_config('config.yaml')
   dataset_choices <- get_dataset_choices(config=config)
 
   ## header
