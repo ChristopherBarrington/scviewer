@@ -4,6 +4,16 @@ A lightweight single cell visualisation tool
 
 
 
+# Running scviewer
+
+Clone this repository with `git clone git@github.com:ChristopherBarrington/scviewer.git my_project` and edit the `config.yaml` (but don't rename it!). Ensure that the `h5` files are accessible, for example in a `data` subdirectory. Make the app directory accessible on a shiny server and visit in a web browser. It's a `shiny` app after all.
+
+Running this way the `scviewer` package is loaded into an R session using `devtools::load_all()` in the `app.R`.
+
+The package _could_ be installed into a standard R library and `app.R` modified to use `library(scviewer)` instead; with this option the `scviewer` subdirectory is redundant.
+
+
+
 # Create an `h5` file
 
 `scviewer` expects all datasets to be saved into a properly-formatted `h5` file with keys for the following:
@@ -292,6 +302,3 @@ Ignore the `tracker`.
 
 
 
-# Running scviewer
-
-Clone this repository with `git clone git@github.com:ChristopherBarrington/scviewer.git my_project` and edit the `config.yaml` (but don't rename it!). Ensure that the `h5` files are accessible, for example in a `data` subdirectory. Make the app directory accessible on a shiny server and visit in a web browser. It's a `shiny` app after all.
