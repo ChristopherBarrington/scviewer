@@ -1,5 +1,10 @@
 
-# get a choice of element by priority
+#' Make a ranked choice
+#' 
+#' @param x Named vector of possible choices
+#' @param preferences Ranked vector of names of `x`
+#' @param default Element of `x` if none of `preferences` are names of `x`
+#' 
 preferred_choice <- function(x, preferences, default=1) {
   if(length(x)==0)
     stop('no elements from which to choose!')
