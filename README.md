@@ -12,6 +12,8 @@ Running this way the `scviewer` package is loaded into an R session using `devto
 
 The package _could_ be installed into a standard R library and `app.R` modified to use `library(scviewer)` instead; with this option the `scviewer` subdirectory is redundant.
 
+The app can be launched on a Shiny server via a web browser or from R using `shiny::runApp()` form the root directory of the cloned repository.
+
 
 
 # Create an `h5` file
