@@ -1,4 +1,5 @@
-#' @import shinydashboard
+
+#' Define the user interface
 #' 
 ui <- function() {
   config <- load_app_config('config.yaml')

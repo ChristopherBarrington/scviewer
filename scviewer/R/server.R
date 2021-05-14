@@ -1,5 +1,6 @@
 
-# define the server
+#' Define the server
+#' 
 server <- function(input, output, session) {
 
   log_message <- skip_log_message
