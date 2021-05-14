@@ -1,3 +1,14 @@
 
-devtools::load_all(path='scviewer', export_all=FALSE)
-scviewer:::run_scviewer()
+#                                       _                                    
+#      o O O   ___     __     __ __    (_)     ___   __ __ __  ___      _ _  
+#     o       (_-<    / _|    \ V /    | |    / -_)  \ V  V / / -_)    | '_| 
+#    TS__[O]  /__/_   \__|_   _\_/_   _|_|_   \___|   \_/\_/  \___|   _|_|_  
+#   {======|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""| 
+#  ./o--000'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-' 
+# ===========================================================================
+#
+
+devtools::load_all(path='scviewer', export_all=FALSE) # load from the current directory
+# library(scviewer) # load from a library
+
+scviewer::run_scviewer() # launch the app
