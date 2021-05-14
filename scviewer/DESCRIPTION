@@ -28,4 +28,5 @@ Depends:
   shinydashboard,
   magrittr,
   tidyverse
+Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.0.2
