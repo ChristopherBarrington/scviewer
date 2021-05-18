@@ -3,12 +3,12 @@
 #' 
 #' @import shinydashboard
 #' 
+#' @importFrom dashboardthemes shinyDashboardThemes
 #' @importFrom dqshiny autocomplete_input
 #' @importFrom esquisse palettePicker
 #' @importFrom plotly plotlyOutput
 #' @importFrom scales brewer_pal
 #' @importFrom scales viridis_pal
-#' @importFrom dashboardthemes shinyDashboardThemes
 #' @importFrom shinyWidgets prettySwitch
 #' @importFrom waiter use_waiter
 #' 
