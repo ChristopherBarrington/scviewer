@@ -1,6 +1,17 @@
 
 #' Define the user interface
 #' 
+#' @import shinydashboard
+#' 
+#' @importFrom dqshiny autocomplete_input
+#' @importFrom esquisse palettePicker
+#' @importFrom plotly plotlyOutput
+#' @importFrom scales brewer_pal
+#' @importFrom scales viridis_pal
+#' @importFrom dashboardthemes shinyDashboardThemes
+#' @importFrom shinyWidgets prettySwitch
+#' @importFrom waiter use_waiter
+#' 
 ui <- function() {
   config <- load_app_config('config.yaml')
   dataset_choices <- get_dataset_choices(config=config)
