@@ -1,10 +1,12 @@
 
 #' Read the configuration yaml
 #' 
+#' @importFrom yaml read_yaml
+#' 
 #' @param file Path to YAML
 #' 
 load_app_config <- function(file='config.yaml')
-  yaml::read_yaml(file=file)
+  read_yaml(file=file)
 
 #' Parse configuration object to get available datasets
 #' 
