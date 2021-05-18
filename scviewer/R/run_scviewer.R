@@ -5,6 +5,8 @@
 #' 
 #' @details Uses the `ui` and `server` functions defined in `scviewer`.
 #' 
+#' @importFrom shiny shinyApp
+#' 
 #' @export
 #' 
 run_scviewer <- function(...) {
