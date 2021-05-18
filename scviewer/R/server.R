@@ -1,6 +1,18 @@
 
 #' Define the server
 #' 
+#' @import grid
+#' @import rhdf5
+#' @import stringi
+#' @import plotly
+#' 
+#' @importFrom dqshiny update_autocomplete_input
+#' @importFrom RColorBrewer brewer.pal 
+#' @importFrom scales comma
+#' @importFrom scales squish
+#' @importFrom shinyWidgets pickerInput
+#' @importFrom shinyWidgets sendSweetAlert
+#' 
 server <- function(input, output, session) {
 
   log_message <- skip_log_message
@@ -437,7 +449,6 @@ server <- function(input, output, session) {
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
       mutate_(cluster_id=cluster_identity_set_var) %>%
       mutate_(is_selected=formatted_cell_filter) %T>%
-      {print(head(.))} %>%
       mutate(text=sprintf(fmt='Cluster: %s\n%s: %.2f', cluster_id, feature_name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(is_selected, feature_value) %>%
