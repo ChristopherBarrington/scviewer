@@ -11,11 +11,10 @@ Description: Provides a Shiny app to display single-cell datasets.
 License: What license it uses
 Encoding: UTF-8
 LazyData: true
-Depends:
+Imorts:
   grid,
   rhdf5,
   stringi,
-  R (>= 3.5),
   plotly,
   waiter,
   esquisse,
@@ -26,7 +25,9 @@ Depends:
   dashboardthemes,
   dqshiny,
   shinydashboard,
+Depends:
+  R (>= 3.5),
   magrittr,
   tidyverse
-Roxygen: list(markdown = TRUE)
+Roxygen: list(markdown=TRUE)
 RoxygenNote: 7.0.2
