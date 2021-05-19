@@ -5,7 +5,7 @@
 \alias{guess_features_matrix}
 \title{Write feature values to a h5 file}
 \usage{
-write_features(h5_file, features_matrix, ...)
+write_features(h5_file, features_matrix, ..., dry_run = FALSE)
 
 guess_features_matrix(seurat)
 }

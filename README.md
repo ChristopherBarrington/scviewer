@@ -6,15 +6,7 @@ A lightweight single cell visualisation tool
 
 # Running scviewer
 
-Clone this repository with `git clone git@github.com:ChristopherBarrington/scviewer.git my_project` and edit the `config.yaml` (but don't rename it!). Ensure that the `h5` files are accessible, for example in a `data` subdirectory. Make the app directory accessible on a shiny server and visit in a web browser. It's a `shiny` app after all.
-
-Running this way the `scviewer` package is loaded into an R session using `devtools::load_all()` in the `app.R`.
-
-The package _could_ be installed into a standard R library and `app.R` modified to use `library(scviewer)` instead; with this option the `scviewer` subdirectory is redundant.
-
-The app can be launched on a Shiny server via a web browser or from R using `shiny::runApp()` form the root directory of the cloned repository.
-
-
+This package provides the functions to create `h5` files and run an `scviewer` shiny app, see [scviewer-app](https://github.com/ChristopherBarrington/scviewer-app) for information on configuring the app.
 
 # Create an `h5` file
 
@@ -39,11 +31,20 @@ The following examples can be used to create a new scviewer-compatible `h5` file
 * features in `scviewer` are the normalised RNA and numeric meta data.
 * `seurat@reductions` must contain a `pca` entry and describe at least 3 components. Both '2D' and '3D' PCA coordinates are taken from the `pca` slot.
 
-Once this repository has been cloned, the `scviewer` subdirectory can be loaded as an R package:
+Once this repository has been cloned, the `scviewer` package can be loaded without installation:
 
 ```R
 devtools::load('scviewer', export_all=FALSE)
 ```
+
+or with installation:
+
+```R
+remotes::install_github(repo='ChristopherBarrington/scviewer')
+library(scviewer)
+```
+
+To use the package to create files only, any shiny-related missing library warnings can be ignored.
 
 Load the seurat object, here I use `readRDS` but any equivalent method to get an object should be fine. I also define a path into which the `h5` files should be written. Any method to define these variable would work.
 
@@ -52,7 +53,7 @@ seurat <- Sys.getenv('INPUT_SEURAT_RDS') %>% readRDS()
 save_path <- Sys.getenv('OUTPUT_PATH') %T>% dir.create(recursive=TRUE, showWarnings=FALSE)
 ```
 
-**There is a tl;dr in the Bundling the whole process section**
+**There is a tl;dr in the [Bundling the whole process](#bundling-the-whole-process) section**
 
 ## Required reductions
 
@@ -126,6 +127,9 @@ $pca_3d
 
 ```R
 write_reductions(h5_file=h5_file, seurat=seurat) # uses `guess_reductions` to collect coordinates
+```
+
+```R
 write_reductions(h5_file=h5_file, reductions=reductions) # user-defined coordinates list
 ```
 
@@ -154,6 +158,9 @@ AAACGCTGTAGATTAG-1 4.911110 4.777138   5.093644         2539      14096
 
 ```R
 write_features(h5_file=h5_file, seurat=seurat) # uses `guess_features_matrix` to collect normalised RNA and numeric meta data
+```
+
+```R
 write_features(h5_file=h5_file, features_matrix=features_matrix) # user-defined feature values matrix
 ```
 
@@ -192,6 +199,9 @@ Now the `metadata` is now written to the `h5_file`.
 
 ```R
 write_metadata(h5_file=h5_file, seurat=seurat) # uses `guess_metadata` to collect factor meta data
+```
+
+```R
 write_metadata(h5_file=h5_file, metadata=metadata) # user-defined metadata
 ```
 
@@ -257,10 +267,13 @@ The list of cell cluster information that was defined above is written to the `h
 
 ```R
 write_cluster_identity_sets(h5_file=h5_file, seurat=seurat) # uses `guess_cluster_identity_sets` to collect cluster sets
+```
+
+```R
 write_cluster_identity_sets(h5_file=h5_file, cluster_identity_sets=cluster_identity_sets) # user-defined cluster definitions
 ```
 
-## Bundling the whole process (tl;dr)
+## Bundling the whole process
 
 The following wrapper function _could_ work. No cell filters are applied!
 
