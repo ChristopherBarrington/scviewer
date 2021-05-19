@@ -38,12 +38,13 @@ write_reductions <- function(h5_file, reductions, ...) {
 #' @describeIn write_reductions Create a list of coordinates for reductions
 #' 
 #' @importFrom purrr set_names
+#' @importFrom Seurat Reductions
 #' 
 guess_reductions <- function(seurat) {
   message('+ collecting reductions')
   lapply(seurat@reductions, function(reduction)
       slot(object=reduction, name='cell.embeddings') %>% as.data.frame()) %>%
-    append(list(pca_3d=.$pca[,1:3]), after=1) %>% # get 3d pca embedding coordinates
+    append(list(pca_3d=.$pca[,1:3]), after=which(Reductions(seurat)=='pca')) %>% # get 3d pca embedding coordinates
     (function(x) {x$pca %<>% select(1:2); x}) %>% # select first 2 pca embedding coordinates
     lapply(function(df) df %>% set_names(function(N) head(x=c('x','y','z'), n=length(N)))) %>% # select x/y for 2d or x/y/z for 3d reductions
     lapply(rownames_to_column, var='cell_id')
