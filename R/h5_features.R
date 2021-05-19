@@ -11,7 +11,7 @@
 #' 
 #' @export
 #' 
-write_features <- function(h5_file, features_matrix, ...) {
+write_features <- function(h5_file, features_matrix, ..., dry_run=FALSE) {
   if(h5ls(h5_file, recursive=1) %>% pluck('name') %>% is_in(x='features')) {
     message('- deleting features')
     h5delete(file=h5_file, name='features')
@@ -24,11 +24,14 @@ write_features <- function(h5_file, features_matrix, ...) {
   if(missing(features_matrix))
     features_matrix <- guess_features_matrix(...)
 
+  if(dry_run)
+    features_matrix %<>% head(n=100)
+
   message('+ writing features')
   h5write(obj=colnames(features_matrix), file=h5_file, name='features/names')
   h5write(obj=rownames(features_matrix), file=h5_file, name='features/cell_ids')
 
-  for(i in colnames(features_matrix)[1:50])
+  for(i in colnames(features_matrix))
     str_to_lower(i) %>%
       sprintf(fmt='features/values/%s') %>%
       h5write(obj=features_matrix[,i], file=h5_file)
