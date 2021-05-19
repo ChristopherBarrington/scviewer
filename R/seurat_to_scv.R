@@ -5,16 +5,10 @@
 #' @param recalculate_reductions Should 2D and 3D tSNE and UMAP reductions be calculated?
 #' @param ... Arguments passed to `add_all_projections`
 #' 
-#' @importFrom rhdf5 h5createFile
-#' 
 #' @export
 #' 
 seurat_to_scv <- function(h5_file, seurat, recalculate_reductions=FALSE, ...) {
-  if(file.exists(h5_file)) {
-    sprintf(fmt='- the h5_file (%s) exists and will not be removed!', h5_file) %>% message()
-  } else {
-    h5createFile(file=h5_file) %>% invisible()
-  }
+  create_h5_scv(h5_file=h5_file)
 
   seurat %<>%
     when(is.character(.)~readRDS(.),
@@ -29,4 +23,25 @@ seurat_to_scv <- function(h5_file, seurat, recalculate_reductions=FALSE, ...) {
   write_cluster_identity_sets(h5_file=h5_file, seurat=seurat)
 
   invisible(NULL)
+}
+
+#' Create an empty `h5` file
+#' 
+#' @param h5_file Path to `h5` file
+#' @param remove Should `h5_file` be removed if it exists?
+#' 
+#' @importFrom rhdf5 h5createFile
+#' 
+#' 
+create_h5_scv <- function(h5_file, delete=TRUE) {
+  if(file.exists(h5_file)) {
+    sprintf(fmt='- the h5_file (%s) exists!', h5_file) %>% message()
+  
+    if(delete) {
+      message('- and has been removed!')
+      file.remove(h5_file)
+    }
+  }
+
+  h5createFile(file=h5_file) %>% invisible()
 }
