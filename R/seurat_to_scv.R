@@ -5,6 +5,8 @@
 #' @param recalculate_reductions Should 2D and 3D tSNE and UMAP reductions be calculated?
 #' @param ... Arguments passed to `add_all_projections`
 #' 
+#' @importFrom rhdf5 h5createFile
+#' 
 #' @export
 #' 
 seurat_to_scv <- function(h5_file, seurat, recalculate_reductions=FALSE, ...) {
@@ -18,7 +20,7 @@ seurat_to_scv <- function(h5_file, seurat, recalculate_reductions=FALSE, ...) {
   }
 
   write_reductions(h5_file=h5_file, seurat=seurat)
-  write_features(h5_file=h5_file, seurat=seurat)
+  write_features(h5_file=h5_file, seurat=seurat, ...)
   write_metadata(h5_file=h5_file, seurat=seurat)
   write_cluster_identity_sets(h5_file=h5_file, seurat=seurat)
 
