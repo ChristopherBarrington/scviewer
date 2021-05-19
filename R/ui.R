@@ -19,9 +19,12 @@ ui <- function() {
   ## header
   dashboardHeader(disable=FALSE,
                   title=config$title,
+                  tags$li(a(href='https://github.com/ChristopherBarrington/scviewer-app',
+                            icon(name='github', lib='font-awesome'), title='GitHub', style='cursor: pointer'),
+                            class='dropdown'),
                   tags$li(a(onclick='history.go(-1); return false;', href=NULL,
                             icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer'),
-                          class='dropdown'),
+                            class='dropdown'),
                   titleWidth='1000px') -> ui_header
 
 
@@ -34,10 +37,9 @@ ui <- function() {
                    tags$style(type='text/css', '.main-header .logo {text-align:left !important; background: #455a64 !important; color: rgba(255, 255, 255, 0.8) !important}'),
                    tags$style(type='text/css', '.main-header .logo:hover {color: white !important}'),
                    tags$style(type='text/css', '.navbar {background: #455a64 !important; box-shadow: none !important}'),
-                   tags$style(type='text/css', 'i.fa.fa-home {color: rgba(255, 255, 255, 0.8) !important; font-size: larger !important;}'),
+                   tags$style(type='text/css', 'i.fa.fa-home, i.fab.fa-github {color: rgba(255, 255, 255, 0.8) !important; font-size: larger !important;}'),
                    tags$style(type='text/css', '.irs-grid-text {visibility: hidden !important;}'),
                    tags$style(type='text/css', '.autocomplete-items div:hover {background-color: #DDDDDD;}'),
-
 
                    selectizeInput(inputId='filename', label='Select a dataset', choices=dataset_choices,
                                   options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
