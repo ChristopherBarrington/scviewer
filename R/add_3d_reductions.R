@@ -7,8 +7,7 @@
 #'
 #' @describeIn add_all_projections Add 3D tSNE reduction to Seurat object
 #' 
-#' @importFrom Seurat RunTSNE
-#' @importFrom Seurat RunUMAP
+#' @importFrom Seurat DietSeurat
 #' 
 #' @export
 #' 
