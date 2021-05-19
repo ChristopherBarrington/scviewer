@@ -40,7 +40,6 @@ ui <- function() {
                    tags$style(type='text/css', 'i.fa.fa-home, i.fab.fa-github {color: rgba(255, 255, 255, 0.8) !important; font-size: larger !important;}'),
                    tags$style(type='text/css', '.irs-grid-text {visibility: hidden !important;}'),
                    tags$style(type='text/css', '.autocomplete-items div:hover {background-color: #DDDDDD;}'),
-
                    selectizeInput(inputId='filename', label='Select a dataset', choices=dataset_choices,
                                   options=list(placeholder='Datasets', onInitialize=I('function() { this.setValue(""); }'))),
                    autocomplete_input(id='feature', label='Feature', placeholder='Feature', options='', value=''),
