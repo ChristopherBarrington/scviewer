@@ -32,6 +32,7 @@ seurat_to_scv <- function(h5_file, seurat, recalculate_reductions=FALSE, ...) {
 #' 
 #' @importFrom rhdf5 h5createFile
 #' 
+#' @export
 #' 
 create_h5_scv <- function(h5_file, delete=TRUE) {
   if(file.exists(h5_file)) {
