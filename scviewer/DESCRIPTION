@@ -25,6 +25,7 @@ Imorts:
   dashboardthemes,
   dqshiny,
   shinydashboard,
+  Seurat
 Depends:
   R (>= 3.5),
   magrittr,

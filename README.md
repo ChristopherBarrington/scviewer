@@ -36,137 +36,148 @@ The app can be launched on a Shiny server via a web browser or from R using `shi
 
 The following examples can be used to create a new scviewer-compatible `h5` file from a Seurat object. Some assumptions are that:
 
-* features in `scviewer` are the normalised RNA and gene module scores.
+* features in `scviewer` are the normalised RNA and numeric meta data.
 * `seurat@reductions` must contain a `pca` entry and describe at least 3 components. Both '2D' and '3D' PCA coordinates are taken from the `pca` slot.
 
-First, load any handy libraries:
+Once this repository has been cloned, the `scviewer` subdirectory can be loaded as an R package:
 
-```r
-library(gtools) # to sort vectors
-library(scales) # to format numbers with commas
-library(Seurat) # ...
-library(rhdf5) # to create and write h5 files
-library(magrittr)
-library(tidyverse)
+```R
+devtools::load('scviewer', export_all=FALSE)
 ```
 
-Load the seurat object, here I use `readRDS` but any equivalent method to get an object should be fine. I also define a path into which the `h5` files should be written.
+Load the seurat object, here I use `readRDS` but any equivalent method to get an object should be fine. I also define a path into which the `h5` files should be written. Any method to define these variable would work.
 
 ```R
 seurat <- Sys.getenv('INPUT_SEURAT_RDS') %>% readRDS()
 save_path <- Sys.getenv('OUTPUT_PATH') %T>% dir.create(recursive=TRUE, showWarnings=FALSE)
 ```
 
-## Formatting data from Seurat object
+**There is a tl;dr in the Bundling the whole process section**
 
-In the following, the data from the Seurat object is parsed/formatted/wrangled and mangled into structures that can be saved in the `h5` file.
+## Required reductions
 
+To make the 2- and 3-dimension tSNE and UMAP panels, the reductions must be available in the `reductions` slot of the input Seurat object. Assuming there is a PCA `Reduction` in the object, the following will remove any other `Reductions` than `pca` and calculate tSNE and UMAP `Reductions`, where `n_dimensions` is specified.
+
+```R
+seurat %<>% add_all_projections(n_dimensions=30)
+```
+
+## Formatting data from Seurat object and writing the h5
+
+In the following, the data from the Seurat object is parsed/formatted/wrangled and mangled into structures that are written into the `h5` file.
+
+### Create the `h5` file
+
+An empty `h5` formatted file is created here. If the file exists, it should be deleted beforehand otherwise this command will fail. If an existing `h5` file is used as `h5_file` the groups written will be deleted from the file before being re-written by the following functions.
+
+```R
+h5_file <- file.path(save_path, str_c(Project(seurat), '.scv'))
+h5createFile(file=h5_file) %>% invisible()
+```
 ### Reductions
 
 The following extracts all of the reductions in the Seurat object into a list of `data.frame` objects.
 
-An assumption here is that for each reduction method (eg UMAP) there are two reduction objects: `umap` and `umap_3d` for example. If you don't have those embeddings, you can use `RunUMAP` to add them to your Seurat object.
+An assumption here is that for each reduction method (eg UMAP) there are two reduction objects: `umap` and `umap_3d` for example. If you don't have those embeddings, you can use `RunUMAP` to add them to your Seurat object or try using `scviewer::add_all_reductions()`.
 
 For the PCA reduction, the first three components are selected to make the `pca_3d` data from the `pca` reduction then the first two are selected to make the 2D version.
 
 ```R
-lapply(seurat@reductions, function(reduction)
-    slot(object=reduction, name='cell.embeddings') %>%
-      as.data.frame()) %>%
-  append(list(pca_3d=.$pca[,1:3])) %>% # get 3d pca embedding coordinates
-  (function(x) {x$pca %<>% select(1:2); x}) %>% # select first 2 pca embedding coordinates
-  lapply(function(df) df %>% set_names(function(n) head(x=c('x','y','z'), n=length(n)))) %>% # select x/y for 2d or x/y/z for 3d redcutions
-  lapply(rownames_to_column, var='cell_id') -> reductions
-```
-
-```R
-> lapply(reductions, head, n=2)
+> reductions <- scviewer:::guess_reductions(seurat)
+> lapply(reductions, head, n=3)
 $pca
-             cell_id          x        y
-1 AAACCCAAGTTAACGA-1 -0.6490665 9.609650
-2 AAAGGATAGTAGACCG-1  0.4111985 1.595257
+             cell_id         x           y
+1 AAACCCACACCTCTGT-1  1.934101  3.70549631
+2 AAACCCAGTAAGAACT-1 -6.095149  2.35777169
+3 AAACGAAAGACTGAGC-1 11.628598 -0.09594123
 
 $tsne
              cell_id          x         y
-1 AAACCCAAGTTAACGA-1 -3.0988920 -7.363438
-2 AAAGGATAGTAGACCG-1 -0.7396024  2.436722
+1 AAACCCACACCTCTGT-1   7.718922 15.008067
+2 AAACCCAGTAAGAACT-1   1.156841 -5.977375
+3 AAACGAAAGACTGAGC-1 -24.378159 25.883702
 
 $tsne_3d
-             cell_id          x          y         z
-1 AAACCCAAGTTAACGA-1 -1.5164873 -12.311868  6.206285
-2 AAAGGATAGTAGACCG-1 -0.5401924   1.390172 -3.857753
+             cell_id         x         y           z
+1 AAACCCACACCTCTGT-1 -20.08531 -6.058905   0.7906353
+2 AAACCCAGTAAGAACT-1  -1.68918  5.855843 -29.6971474
+3 AAACGAAAGACTGAGC-1 -13.84951  4.869889  43.4326906
 
 $umap
-             cell_id         x        y
-1 AAACCCAAGTTAACGA-1 -5.115594 5.735861
-2 AAAGGATAGTAGACCG-1 -4.502333 5.402456
+             cell_id         x         y
+1 AAACCCACACCTCTGT-1 -1.345953  1.311305
+2 AAACCCAGTAAGAACT-1  4.432537  2.619599
+3 AAACGAAAGACTGAGC-1 -6.841505 -1.717847
 
 $umap_3d
-             cell_id         x         y            z
-1 AAACCCAAGTTAACGA-1 -2.235322 -5.993289 -0.109285650
-2 AAAGGATAGTAGACCG-1 -2.078960 -5.495621  0.001449766
+             cell_id          x         y         z
+1 AAACCCACACCTCTGT-1  1.1464871  1.226989 -1.242662
+2 AAACCCAGTAAGAACT-1 -0.9679188 -2.856427 -1.369519
+3 AAACGAAAGACTGAGC-1  5.5932413  2.799470  1.500001
 
 $pca_3d
-             cell_id          x        y        z
-1 AAACCCAAGTTAACGA-1 -0.6490665 9.609650 5.955356
-2 AAAGGATAGTAGACCG-1  0.4111985 1.595257 3.081175
+             cell_id         x           y         z
+1 AAACCCACACCTCTGT-1  1.934101  3.70549631 -6.434000
+2 AAACCCAGTAAGAACT-1 -6.095149  2.35777169 -4.475791
+3 AAACGAAAGACTGAGC-1 11.628598 -0.09594123  1.120231
 
 >
 ```
 
-
+```R
+write_reductions(h5_file=h5_file, seurat=seurat) # uses `guess_reductions` to collect coordinates
+write_reductions(h5_file=h5_file, reductions=reductions) # user-defined coordinates list
+```
 
 ### Feature values
 
-The values of features are extracted into a matrix and can be appended with any other numeric data. Here I append any metadata variables that start with 'GeneModule', but you can add `nCount_RNA`  or `percent.mt` or cell cycle scores etc so that they can be plotted in the viewer as a feature.
+By default, the values of RNA features are extracted into a matrix and can be appended with any other numeric meta data. Any numeric data can be added here so that they can be plotted in the viewer as a feature. This matrix can be automatically created by `write_features` using `guess_features_matrix` when the `features_matrix` argument is omitted.
 
 ```R
-cbind({seurat@assays$RNA@data %>% Matrix::t()},
-      {select(seurat@meta.data, starts_with('GeneModule')) %>% set_names(str_replace, 'GeneModule-', 'GeneModule ') %>% Matrix::as.matrix()}) %>%
-  as.matrix() -> feature_values
-```
-
-```R
-> feature_values[1:10, 35001:35007]
-                   RBMY    RPL10Y SRY TFE3Y    THOC2Y    UBE1Y1 GeneModule example
-AAACCCAAGTTAACGA-1    0 0.0000000   0     0 0.0000000 0.0000000         -0.2393771
-AAAGGATAGTAGACCG-1    0 0.8551456   0     0 0.0000000 0.0000000         -0.2048669
-AAATGGATCGAACACT-1    0 0.5655402   0     0 0.5655402 0.0000000         -0.2683462
-AACAAAGTCCGACATA-1    0 1.0969484   0     0 0.0000000 0.6918995         -0.2023827
-AACAACCAGATCCTAC-1    0 1.6682587   0     0 0.0000000 0.0000000         -0.1074411
-AACAACCTCCGTGCGA-1    0 1.5568630   0     0 0.0000000 0.0000000         -0.1944051
-AACACACTCTCTGGTC-1    0 0.0000000   0     0 0.0000000 0.0000000         -0.2604263
-AACAGGGTCAAATAGG-1    0 0.0000000   0     0 0.0000000 0.0000000         -0.1637551
-AACCAACCATGGATCT-1    0 1.0359746   0     0 0.0000000 0.0000000         -0.1065024
-AACCTTTTCCGTGGCA-1    0 0.0000000   0     0 0.0000000 0.0000000         -0.3349746
+> features_matrix <- scviewer:::guess_features_matrix(seurat)
+> features_matrix[1:10, c('COX3', 'RPS12', 'percent_mt', 'nFeature_RNA', 'nCount_RNA')]
+                       COX3    RPS12 percent_mt nFeature_RNA nCount_RNA
+AAACCCACACCTCTGT-1 4.811714 4.817744   4.610008         2225      13449
+AAACCCAGTAAGAACT-1 4.468762 4.881488   3.730982         1831      10319
+AAACGAAAGACTGAGC-1 4.244721 4.617961   3.177644         3048      17749
+AAACGAAAGGCTCTAT-1 4.787714 4.974337   5.194957         2634      17055
+AAACGAAGTGAGCCAA-1 4.458634 4.937042   3.297027         1456       6794
+AAACGCTAGACCAGAC-1 4.841800 4.738045   6.368101         2452      12013
+AAACGCTCAAGGCTTT-1 4.744864 4.509862   4.752348         2387      12457
+AAACGCTCAGACGCTC-1 4.959195 4.717896   6.495177         2369      12440
+AAACGCTCATCAGTGT-1 5.197880 4.598387   6.815642         1984       8950
+AAACGCTGTAGATTAG-1 4.911110 4.777138   5.093644         2539      14096
 >
 ```
 
+(This is the slow bit). For every feature, a new element in the `h5` file is written; each feature is a key in the `feature/values` location. Feature names are converted here to lower case, since the retrieval from the app is case-sensitive.
 
+```R
+write_features(h5_file=h5_file, seurat=seurat) # uses `guess_features_matrix` to collect normalised RNA and numeric meta data
+write_features(h5_file=h5_file, features_matrix=features_matrix) # user-defined feature values matrix
+```
 
 ### Dataset metadata
 
-The metadata is extracted and subset. Any cell filters need to be defined here - these are one or more variables that can be used to determine if a cell should be displayed. The logic uses `%in%` to identify cells whose filter value is selected. In this example, I create a `dataset_filter` which reformats the `orig.ident` and adds in the number of cells in the filter. Cluster identities are defined here too, keeping any variable with the '_snn_res' string in this case. But these variables are completely flexible, any names and any content. 
-
-Keep `cell_id` in, it might be important.
+The metadata is extracted and subset. Any cell filters need to be defined here - these are one or more variables that can be used to determine if a cell should be displayed. The logic uses `%in%` to identify cells whose filter value is selected. In this example, I create a `dataset_filter` which reformats the `orig.ident` and adds in the number of cells in the filter. Cluster identities are defined here too, keeping any variable with the '\_snn_res' string in this case. But these variables are completely flexible, any names and any content. 
 
 The filter and cluster variables are converted to factors and their levels ordered; the order of levels here is the order of the levels in the app.
 
-```R
-seurat@meta.data %>%
-  as.data.frame() %>%
-  rownames_to_column('cell_id') %>%
-  mutate(datasets_filter=str_remove(orig.ident, '_all') %>% str_replace('_', ' ')) %>% 
-  select(datasets_filter, cell_id, contains('_snn_res.')) %>%
-  group_by(datasets_filter) %>%
-  mutate(N=n()) %>%
-  ungroup() %>%
-  mutate(datasets_filter={sprintf(fmt='%s (n=%s)', datasets_filter, comma(N)) %>% factor() %>% fct_relevel({levels(.) %>% mixedsort()})}) %>%
-  mutate_at(vars(contains('_snn_res.')), function(x) x %>% fct_relevel({levels(.) %>% mixedsort()})) %>%
-  select(-N) -> metadata
-```
+The code below shows how the meta data table can be customised and provided. If omitted, any non-numeric variables of `seurat@meta.data` will be exported and converted to factors by `guess_metadata`. 
 
 ```R
+> seurat@meta.data %>%
++   as.data.frame() %>%
++   rownames_to_column('cell_id') %>%
++   mutate(datasets_filter=str_replace(orig.ident, '_', ' ')) %>%
++   select(datasets_filter, cell_id, contains('_snn_res.')) %>%
++   group_by(datasets_filter) %>%
++   mutate(N=n()) %>%
++   ungroup() %>%
++   mutate(datasets_filter={sprintf(fmt='%s (n=%s)', datasets_filter, comma(N)) %>% factor() %>% fct_relevel({levels(.) %>% mixedsort()})}) %>%
++   mutate_at(vars(contains('_snn_res.')), function(x) x %>% fct_relevel({levels(.) %>% mixedsort()})) %>%
++   select(-N) -> metadata
+>
 > metadata[1:5, 1:7] %>% as.data.frame()
   datasets_filter            cell_id RNA_snn_res.0.2 RNA_snn_res.0.4 RNA_snn_res.0.6 RNA_snn_res.0.8 RNA_snn_res.1
 1     E85 (n=477) AAACCCAAGTTAACGA-1               0               2               1               1             1
@@ -177,26 +188,35 @@ seurat@meta.data %>%
 >
 ```
 
+Now the `metadata` is now written to the `h5_file`.
 
+```R
+write_metadata(h5_file=h5_file, seurat=seurat) # uses `guess_metadata` to collect factor meta data
+write_metadata(h5_file=h5_file, metadata=metadata) # user-defined metadata
+```
+
+### Cell filters
+
+The list of cell filters here is used to create the drop down UI elements and filter the cells. The list is named according to the label that should be displayed next to the UI element and the `var` element is the variable in the meta data that should be filtered. Filters are not required and can be omitted, if there are none.
+
+In this example, I define filters only for the 'datasets_filter' variable and specify that one dataset should be selected by default. (is functionality even working?!)
+
+```R
+list(`Constituent datasets`=list(var='datasets_filter', selected=c('E85 (n=477)'))) %>%
+  write_cell_filter_parameters(h5_file=h5_file)
+```
 
 ### Cell clusters
 
-A list is created that determines which cluster sets to include in the dropdown selector and which cluster identities should be shown by default. Here, I take all of the cluster sets in the metadata table and show all cluster identities by default. The final output of this chunk is a list of lists. Each index of the first-level list is named according to the metadata variable. The second-level list contains:
+A list is created that determines which cluster sets to include in the drop down selector and which cluster identities should be shown by default. Here, I take all of the cluster sets in the meta data table and show all cluster identities by default. The final output of this chunk is a list of lists. Each index of the first-level list is named according to the meta data variable. The second-level list contains:
 
-* `var` the metadata variable
-* `name` a name for the cluster set to be shown in the dropdown - here the clustering resolution is appended to 'Res. '
-* `selected` is a vector of cluster identities (whcih should be levels of the `var`) to show by default
-
-```R
-metadata %>%
-  colnames() %>%
-  str_subset('_snn_res.') %>%
-  set_names() %>%
-  lapply(function(x) list(var=x, name={str_remove(x, '^\\D+') %>% sprintf(fmt='Res. %s')}, selected=levels(metadata[[x]]))) -> cluster_identity_sets
-```
+* `var` the meta data variable
+* `name` a name for the cluster set to be shown in the drop down - here the clustering resolution is appended to 'Res. '
+* `selected` is a vector of cluster identities (which should be levels of the `var`) to show by default
 
 ```R
-> cluster_identity_sets[1:2]
+> cluster_identity_sets <- guess_cluster_identity_sets(seurat)
+> head(cluster_identity_sets, n=3)
 $RNA_snn_res.0.2
 $RNA_snn_res.0.2$var
 [1] "RNA_snn_res.0.2"
@@ -205,7 +225,7 @@ $RNA_snn_res.0.2$name
 [1] "Res. 0.2"
 
 $RNA_snn_res.0.2$selected
-[1] "0" "1" "2"
+[1] "0" "1" "2" "3" "4"
 
 
 $RNA_snn_res.0.4
@@ -216,83 +236,47 @@ $RNA_snn_res.0.4$name
 [1] "Res. 0.4"
 
 $RNA_snn_res.0.4$selected
-[1] "0" "1" "2" "3"
+[1] "0" "1" "2" "3" "4" "5" "6"
+
+
+$RNA_snn_res.0.6
+$RNA_snn_res.0.6$var
+[1] "RNA_snn_res.0.6"
+
+$RNA_snn_res.0.6$name
+[1] "Res. 0.6"
+
+$RNA_snn_res.0.6$selected
+[1] "0" "1" "2" "3" "4" "5" "6" "7" "8"
 
 
 >
 ```
 
-
-
-## Writing the `h5` file
-
-All of the above structures are now written into a new `h5` file (the functions here will not overwrite an existing file). I use the `rhdf5` library here but this should not be absolutely required.
-
-The `h5createGroup` function initialises an element in the `h5` file onto which we can add levels of data. `h5write` is used to write the data from the above structures into the `h5` file; the `obj` argument is the `R` data object (or part thereof), `file` is the path to the `h5` file and `name` is the location of the data in the `h5` file. `h5ls` can be used to see the structure of an `h5` file (though this will be a lot of output once `features` have been written!)
+The list of cell cluster information that was defined above is written to the `h5` file as a list. The default behaviour (above) can be automatically applied by omitting the `cluster_identity_sets` argument.
 
 ```R
-h5_file <- file.path(save_path, str_c(Project(seurat), '.h5'))
-h5createFile(file=h5_file)
+write_cluster_identity_sets(h5_file=h5_file, seurat=seurat) # uses `guess_cluster_identity_sets` to collect cluster sets
+write_cluster_identity_sets(h5_file=h5_file, cluster_identity_sets=cluster_identity_sets) # user-defined cluster definitions
 ```
 
-### Reductions
+## Bundling the whole process (tl;dr)
 
-A new group called `reductions` is created (this *is* a required name!) into which each reduction is written.
+The following wrapper function _could_ work. No cell filters are applied!
+
+It will :
+
+* recalculate the tSNE and UMAP projections in 2D and 3D (if `recalculate_reductions=TRUE`)
+* run`write_reductions`
+* run`write_feature_values`
+* run`write_metadata`
+* run`write_cluster_identity_sets`
+
+Once the `h5` file is written, each component can be modified using the examples above.
 
 ```R
-h5createGroup(file=h5_file, group='reductions')
-for(i in names(reductions))
-  h5write(obj=reductions[[i]], file=h5_file, name=sprintf(fmt='reductions/%s', i))
+seurat_to_scv(h5_file=h5_file, seurat=seurat, recalculate_reductions=TRUE, n_dimensions=40)
 ```
-
-### Feature values
-
-This is the slow bit. For every feature, a new element in the `h5` file is written; each feature is a key in the `feature/values` location. Feature names are converted here to lower case, since the retrieval from the app is case-sensitive.
-
-```R
-h5createGroup(file=h5_file, group='features')
-h5createGroup(file=h5_file, group='features/values')
-h5write(obj=colnames(feature_values), file=h5_file, name='features/names')
-h5write(obj=rownames(feature_values), file=h5_file, name='features/cell_ids')
-
-for(i in colnames(feature_values))
-  str_to_lower(i) %>%
-    sprintf(fmt='features/values/%s') %>%
-    h5write(obj=feature_values[,i], file=h5_file)
-```
-
-### Metadata
-
-The metadata table and the factor levels required to recapitulate it are written here.
-
-```R
-h5createGroup(file=h5_file, group='metadata')
-h5createGroup(file=h5_file, group='metadata/factor_levels')
-h5write(obj=metadata, file=h5_file, name='metadata/data')
-for(i in {metadata %>% select_if(is.factor) %>% colnames()})
-  h5write(obj=levels(metadata[[i]]), file=h5_file, name=sprintf(fmt='metadata/factor_levels/%s', i))
-```
-
-### Cell filters
-
-The list of cell filteres here is used to create the dropdown UI elements and filter the cells. The list is named according to the label that should be displayed next to the UI element and the `var` element is the variable in the metadata that should be filtered. In this example, I define filters only for the 'E105' or 'opossum' datasets, with an empty list otherwise to indictate that there are no filtering options.
-
-```R
-cell_filter_parameters <- list()
-if(Project(seurat) %>% is_in(c('E105', 'opossum')))
-  cell_filter_parameters %<>% append(list(`Constituent datasets`=list(var='datasets_filter')))
-h5write(obj=cell_filter_parameters, file=h5_file, name='cell_filter_parameters')
-```
-
-### Cell clusters
-
-The list of cell cluster information that was defined above is written to the `h5` file as a list.
-
-```R
-h5write(obj=cluster_identity_sets, file=h5_file, name='cluster_identity_sets')
-```
-
-
 
 # Configuration file
 
