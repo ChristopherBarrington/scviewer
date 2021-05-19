@@ -38,6 +38,8 @@ write_metadata <- function(h5_file, metadata, ...) {
 #' 
 #' @details Extracts the factor- or character-type variables from the `seurat` meta data, but it uses `!is.numeric`!
 #' 
+#' @importFrom gtools mixedsort
+#' 
 #' @describeIn write_metadata Select non-numeric variables from the meta data slot
 #' 
 guess_metadata <- function(seurat) {
