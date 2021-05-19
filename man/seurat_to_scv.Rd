@@ -9,7 +9,7 @@ seurat_to_scv(h5_file, seurat, recalculate_reductions = FALSE, ...)
 \arguments{
 \item{h5_file}{Path to \code{h5} file}
 
-\item{seurat}{Seurat object}
+\item{seurat}{Seurat object or file path from which an \code{rds} can be read}
 
 \item{recalculate_reductions}{Should 2D and 3D tSNE and UMAP reductions be calculated?}
 

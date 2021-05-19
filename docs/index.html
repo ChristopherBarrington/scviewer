@@ -316,6 +316,7 @@
 <p>The following wrapper function <em>could</em> work. No cell filters are applied!</p>
 <p>It will :</p>
 <ul>
+<li>use <code>readRDS</code> to read <code>seurat</code> when <code>seurat</code> is a character</li>
 <li>recalculate the tSNE and UMAP projections in 2D and 3D (if <code>recalculate_reductions=TRUE</code>)</li>
 <li>run<code>write_reductions</code>
 </li>
