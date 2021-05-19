@@ -279,6 +279,7 @@ The following wrapper function _could_ work. No cell filters are applied!
 
 It will :
 
+* use `readRDS` to read `seurat` when `seurat` is a character
 * recalculate the tSNE and UMAP projections in 2D and 3D (if `recalculate_reductions=TRUE`)
 * run`write_reductions`
 * run`write_feature_values`
