@@ -6,6 +6,7 @@
 #' @import stringi
 #' @import plotly
 #' 
+#' @importFrom dqshiny hidden
 #' @importFrom dqshiny update_autocomplete_input
 #' @importFrom RColorBrewer brewer.pal 
 #' @importFrom scales comma
