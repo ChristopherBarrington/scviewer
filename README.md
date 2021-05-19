@@ -73,7 +73,7 @@ An empty `h5` formatted file is created here. If the file exists, it should be d
 
 ```R
 h5_file <- file.path(save_path, str_c(Project(seurat), '.scv'))
-h5createFile(file=h5_file) %>% invisible()
+create_h5_scv(h5_file=h5_file)
 ```
 ### Reductions
 
@@ -205,17 +205,6 @@ write_metadata(h5_file=h5_file, seurat=seurat) # uses `guess_metadata` to collec
 write_metadata(h5_file=h5_file, metadata=metadata) # user-defined metadata
 ```
 
-### Cell filters
-
-The list of cell filters here is used to create the drop down UI elements and filter the cells. The list is named according to the label that should be displayed next to the UI element and the `var` element is the variable in the meta data that should be filtered. Filters are not required and can be omitted, if there are none.
-
-In this example, I define filters only for the 'datasets_filter' variable and specify that one dataset should be selected by default. (is functionality even working?!)
-
-```R
-list(`Constituent datasets`=list(var='datasets_filter', selected=c('E85 (n=477)'))) %>%
-  write_cell_filter_parameters(h5_file=h5_file)
-```
-
 ### Cell clusters
 
 A list is created that determines which cluster sets to include in the drop down selector and which cluster identities should be shown by default. Here, I take all of the cluster sets in the meta data table and show all cluster identities by default. The final output of this chunk is a list of lists. Each index of the first-level list is named according to the meta data variable. The second-level list contains:
@@ -271,6 +260,17 @@ write_cluster_identity_sets(h5_file=h5_file, seurat=seurat) # uses `guess_cluste
 
 ```R
 write_cluster_identity_sets(h5_file=h5_file, cluster_identity_sets=cluster_identity_sets) # user-defined cluster definitions
+```
+
+### Cell filters
+
+The list of cell filters here is used to create the drop down UI elements and filter the cells. The list is named according to the label that should be displayed next to the UI element and the `var` element is the variable in the meta data that should be filtered. Filters are not required and can be omitted, if there are none.
+
+In this example, I define filters only for the 'datasets_filter' variable and specify that one dataset should be selected by default. (is functionality even working?!)
+
+```R
+cell_filter_parameters <- list(`Constituent datasets`=list(var='datasets_filter', selected=c('E85 (n=477)'))) %>%
+write_cell_filter_parameters(h5_file=h5_file, cell_filter_parameters=cell_filter_parameters)
 ```
 
 ## Bundling the whole process

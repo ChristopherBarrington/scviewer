@@ -138,7 +138,7 @@
 <p>An empty <code>h5</code> formatted file is created here. If the file exists, it should be deleted beforehand otherwise this command will fail. If an existing <code>h5</code> file is used as <code>h5_file</code> the groups written will be deleted from the file before being re-written by the following functions.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">h5_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html">file.path</a></span><span class="op">(</span><span class="va">save_path</span>, <span class="fu">str_c</span><span class="op">(</span><span class="fu">Project</span><span class="op">(</span><span class="va">seurat</span><span class="op">)</span>, <span class="st">'.scv'</span><span class="op">)</span><span class="op">)</span>
-<span class="fu">h5createFile</span><span class="op">(</span>file<span class="op">=</span><span class="va">h5_file</span><span class="op">)</span> <span class="op">%&gt;%</span> <span class="fu"><a href="https://rdrr.io/r/base/invisible.html">invisible</a></span><span class="op">(</span><span class="op">)</span></code></pre></div>
+<span class="fu"><a href="reference/create_h5_scv.html">create_h5_scv</a></span><span class="op">(</span>h5_file<span class="op">=</span><span class="va">h5_file</span><span class="op">)</span></code></pre></div>
 </div>
 <div id="reductions" class="section level3">
 <h3 class="hasAnchor">
