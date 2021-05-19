@@ -42,6 +42,7 @@ write_features <- function(h5_file, features_matrix, ..., dry_run=FALSE) {
 #' Get a feature values matrix
 #' 
 #' @param seurat Seurat object
+#' @param ... Ignored
 #' 
 #' @details Combines the `RNA@data` slot and any numeric meta data variables into a `feature_matrix`.
 #' 
@@ -51,7 +52,7 @@ write_features <- function(h5_file, features_matrix, ..., dry_run=FALSE) {
 #' @importFrom Matrix t
 #' @importFrom Seurat Assays
 #' 
-guess_features_matrix <- function(seurat) {
+guess_features_matrix <- function(seurat, ...) {
   message('+ collecting features matrix')
   cbind({Assays(seurat, slot='RNA') %>% slot(name='data') %>% Matrix::t()},
         {select_if(seurat@meta.data, is.numeric) %>% Matrix::as.matrix()}) %>%
