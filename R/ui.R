@@ -21,10 +21,10 @@ ui <- function() {
                   title=config$title,
                   tags$li(a(href='https://github.com/ChristopherBarrington/scviewer-app',
                             icon(name='github', lib='font-awesome'), title='GitHub', style='cursor: pointer'),
-                            class='dropdown'),
+                          class='dropdown'),
                   tags$li(a(onclick='history.go(-1); return false;', href=NULL,
                             icon(name='home', lib='font-awesome'), title='Back', style='cursor: pointer'),
-                            class='dropdown'),
+                          class='dropdown'),
                   titleWidth='1000px') -> ui_header
 
 
