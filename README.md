@@ -34,7 +34,7 @@ The following examples can be used to create a new scviewer-compatible `h5` file
 Once this repository has been cloned, the `scviewer` package can be loaded without installation:
 
 ```R
-devtools::load('scviewer', export_all=FALSE)
+devtools::load_all('scviewer', export_all=FALSE)
 ```
 
 or with installation:
