@@ -1,18 +1,19 @@
 
 #' Define the server
 #' 
-#' @import grid
-#' @import rhdf5
-#' @import stringi
 #' @import plotly
 #' 
 #' @importFrom dqshiny hidden
 #' @importFrom dqshiny update_autocomplete_input
+#' @importFrom grid grid.draw
+#' @importFrom gtable is.gtable
 #' @importFrom RColorBrewer brewer.pal 
+#' @importFrom rhdf5 h5read
 #' @importFrom scales comma
 #' @importFrom scales squish
 #' @importFrom shinyWidgets pickerInput
 #' @importFrom shinyWidgets sendSweetAlert
+#' @importFrom stringi stri_rand_strings
 #' 
 server <- function(input, output, session) {
 
@@ -685,7 +686,7 @@ server <- function(input, output, session) {
 
     #### get locations of grobs to modify in the gtable
     gg_left_axis <- gg$layout$name %>% str_which('axis-l')
-    gg_left_axis_labels <- gg$grobs[[gg_left_axis]]$children %>% sapply(gtable::is.gtable) %>% which()
+    gg_left_axis_labels <- gg$grobs[[gg_left_axis]]$children %>% sapply(is.gtable) %>% which()
     gg_left_axis_labels_titleGrob <- 1
     gg_left_axis_labels_titleGrob_text <- 1
 
