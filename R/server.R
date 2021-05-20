@@ -621,7 +621,7 @@ server <- function(input, output, session) {
 
 
   ## make cluster/feature signal barplot
-  output$grouped_feature_values_barplot.notrun <- renderPlot({
+  output$grouped_feature_values_barplot <- renderPlot({
     log_message('(output$grouped_feature_values_barplot) making feature barplot')
 
     req(app_data())
