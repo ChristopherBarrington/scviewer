@@ -242,14 +242,7 @@ server <- function(input, output, session) {
   ### collect input for cluster set to display
   reactive(x={
     req(input$cluster_identity_set_index)
-    input$cluster_identity_set_index %T>%
-      (. %>% sprintf(fmt='(cluster_identity_set_index) set cluster_identity_set_index [%s]') %>% log_message())}) %>%
-    debounce(500) -> input_cluster_identity_set_index
 
-
-
-  #### if cluster set is changed, update the cluster id selector
-  observeEvent(eventExpr=input$cluster_identity_set_index, handlerExpr={
     # collect input reactives
     app_data <- app_data()
     cluster_identity_set_index <- input$cluster_identity_set_index
@@ -259,7 +252,7 @@ server <- function(input, output, session) {
     cluster_identities %>% length() -> n_cluster_identities
     app_data$cluster_identity_sets %>% pluck(cluster_identity_set_index, 'selected') -> selected_cluster_identities
 
-    #### create a picker for the cluster idents
+    # create a picker for the cluster idents for the selected cluster set
     removeUI(selector='#cluster_identitites_filter', immediate=TRUE) # clear UI elements that are already drawn
     pickerInput(inputId='cluster_identities', label='Cluster identities',
                 choices=cluster_identities, selected=selected_cluster_identities,
@@ -267,7 +260,12 @@ server <- function(input, output, session) {
                 multiple=TRUE) %>%
       (function(p) if(n_cluster_identities==1) hidden(p) else p) %>%
       tags$div(id='cluster_identitites_filter') %>%
-      insertUI(selector='#cluster_identities', where='afterBegin', immediate=TRUE, session=session)})
+      insertUI(selector='#cluster_identities', where='afterBegin', immediate=TRUE, session=session)
+
+    # return the index of the selected cluster set
+    input$cluster_identity_set_index %T>%
+      (. %>% sprintf(fmt='(cluster_identity_set_index) set cluster_identity_set_index [%s]') %>% log_message())}) %>%
+    debounce(500) -> input_cluster_identity_set_index
 
 
 
@@ -297,11 +295,11 @@ server <- function(input, output, session) {
 
   ### collect the cell filtering values
   reactive(x={
-    sprintf(fmt='(formatted_cell_filter) making formatted filter expression') %>% log_message()
-
     #### collect input reactives
     app_data <- app_data()
     cluster_identity_set_index <- input_cluster_identity_set_index()
+
+    sprintf(fmt='(formatted_cell_filter) making formatted filter expression') %>% log_message()
 
     #### define variables for function
     app_data$cluster_identity_sets %>%
@@ -324,8 +322,7 @@ server <- function(input, output, session) {
             str_c(collapse='","') %>%
             sprintf(fmt='%s %%in%% c("%s")', x$var, .)) %>%
         str_c(collapse=' & ') %T>%
-        log_message(prepend='+++')}) %>%
-    debounce(500) -> formatted_cell_filter
+        log_message(prepend='+++')}) -> formatted_cell_filter
 
 
 
@@ -355,6 +352,7 @@ server <- function(input, output, session) {
   ### 2D ggplot
   output$feature_scatterplot <- renderPlot({
     log_message('(output$feature_scatterplot) making 2d feature scatterplot')
+
     app_data <- app_data()
     formatted_cell_filter <- formatted_cell_filter()
     input_feature_value_limits <- input_feature_value_limits()
@@ -391,9 +389,14 @@ server <- function(input, output, session) {
       colour_gradient <- scale_colour_gradient()
     }
 
+    # check that variables are where they should be
+    if(is.null(cluster_identity_set_var) || !is.element(el=cluster_identity_set_var, set=colnames(metadata)))
+      return(NULL)
+
+    # make the data.frame and plot
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
-      mutate_(is_selected=formatted_cell_filter) %>%
       mutate_(cluster_id=cluster_identity_set_var) %>%
+      mutate_(is_selected=formatted_cell_filter) %>%
       arrange(is_selected, feature_value) %>%
       {ggplot(data=.) +
        aes(x=x, y=y, colour=feature_value, alpha=is_selected) +
@@ -448,9 +451,14 @@ server <- function(input, output, session) {
       colour_gradient <- viridis_pal(option=picked_palette, direction=1)(32)
     }
  
+    # check that variables are where they should be
+    if(is.null(cluster_identity_set_var) || !is.element(el=cluster_identity_set_var, set=colnames(metadata)))
+      return(NULL)
+
+    # make the data.frame and plot
     data.frame(reduction_coords, feature_value=feature_values, metadata) %>%
       mutate_(cluster_id=cluster_identity_set_var) %>%
-      mutate_(is_selected=formatted_cell_filter) %T>%
+      mutate_(is_selected=formatted_cell_filter) %>%
       mutate(text=sprintf(fmt='Cluster: %s\n%s: %.2f', cluster_id, feature_name, feature_value)) %>%
       mutate(feature_value=squish(x=feature_value, range=limits)) %>%
       arrange(is_selected, feature_value) %>%
@@ -506,12 +514,16 @@ server <- function(input, output, session) {
     formatted_cell_filter <- formatted_cell_filter()
     cluster_identity_set_index <- input_cluster_identity_set_index()
 
-    #### define variables for function
+    # define variables for function
     metadata <- app_data$metadata
     reduction_coords %<>% pluck('d2')
     input_point_size <- input_point_size()
 
     app_data$cluster_identity_sets %>% pluck(cluster_identity_set_index, 'var') -> cluster_identity_set_var
+
+    # check that variables are where they should be
+    if(is.null(cluster_identity_set_var) || !is.element(el=cluster_identity_set_var, set=colnames(metadata)))
+      return(NULL)
 
     metadata %<>% mutate_(cluster_id=cluster_identity_set_var)
     cluster_idents <- metadata %>% pluck('cluster_id') %>% levels()
@@ -522,6 +534,7 @@ server <- function(input, output, session) {
       head(n=n_clusters) %>%
       set_names(cluster_idents) -> colour_scale_values
 
+    # make the data.frame and plot
     data.frame(reduction_coords, metadata) %>%
       mutate_(is_selected=formatted_cell_filter) %>%
       arrange(is_selected, cluster_id) %>%
@@ -557,6 +570,11 @@ server <- function(input, output, session) {
     metadata <- isolate(app_data$metadata)
     reduction_coords %<>% pluck('d3')
 
+    # check that variables are where they should be
+    if(is.null(cluster_identity_set_var) || !is.element(el=cluster_identity_set_var, set=colnames(metadata)))
+      return(NULL)
+
+    # make the data.frame and plot
     data.frame(reduction_coords, metadata) %>%
       mutate_(cluster_id=cluster_identity_set_var) %>%
       mutate_(is_selected=formatted_cell_filter) %>%
@@ -603,7 +621,7 @@ server <- function(input, output, session) {
 
 
   ## make cluster/feature signal barplot
-  output$grouped_feature_values_barplot <- renderPlot({
+  output$grouped_feature_values_barplot.notrun <- renderPlot({
     log_message('(output$grouped_feature_values_barplot) making feature barplot')
 
     req(app_data())
@@ -636,6 +654,11 @@ server <- function(input, output, session) {
       fill_gradient <- scale_fill_gradient()
     }
 
+    # check that variables are where they should be
+    if(!is.element(el=cluster_identity_set_var, set=colnames(metadata)))
+      return(NULL)
+
+    # make the data.frame and plot
     cbind(metadata, feature_value=feature_values) %>%
       mutate_(cluster_id=cluster_identity_set_var) %>%
       add_column(feature_name=feature_name) %>%
