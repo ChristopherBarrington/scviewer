@@ -358,7 +358,7 @@ server <- function(input, output, session) {
     input_feature_value_limits <- input_feature_value_limits()
     input_point_size <- input_point_size()
     reduction_coords <- reduction_coords()
-    selected_feature <- selected_feature()
+    selected_feature <- isolate(selected_feature())
     selected_palette <- selected_palette()
     cluster_identity_set_index <- input_cluster_identity_set_index()
 
@@ -427,7 +427,7 @@ server <- function(input, output, session) {
     formatted_cell_filter <- formatted_cell_filter()
     input_feature_value_limits <- input_feature_value_limits()
     reduction_coords <- reduction_coords()
-    selected_feature <- selected_feature()
+    selected_feature <- isolate(selected_feature())
     selected_palette <- selected_palette()
     input_point_size <- input_point_size()
     cluster_identity_set_index <- input_cluster_identity_set_index()
