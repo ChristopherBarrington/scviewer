@@ -3,7 +3,11 @@
 #' 
 #' @param h5_file Path to `h5` file
 #' @param features_matrix Matrix of cells (rows) and features (columns)
+#' @param feature_types A list of feature names indexed by feature type
 #' @param ... Arguments passed to `guess_features_matrix`
+#' 
+#' @details
+#' The `feature_names` list uses the feature type to influence types of plot and app behaviour so should be one of those recognised by the app. Defaults to `any` if not specified.
 #' 
 #' @import rhdf5
 #' 
@@ -11,7 +15,7 @@
 #' 
 #' @export
 #' 
-write_features <- function(h5_file, features_matrix, ..., dry_run=FALSE) {
+write_features <- function(h5_file, features_matrix, feature_types, ..., dry_run=FALSE) {
   if(h5ls(h5_file, recursive=1) %>% pluck('name') %>% is_in(x='features')) {
     message('- deleting features')
     h5delete(file=h5_file, name='features')
@@ -27,8 +31,12 @@ write_features <- function(h5_file, features_matrix, ..., dry_run=FALSE) {
   if(dry_run)
     features_matrix <- features_matrix[,1:100]
 
+  if(missing(feature_types))
+    feature_types <- list(any=colnames(features_matrix))
+
   message('+ writing features')
-  h5write(obj=colnames(features_matrix), file=h5_file, name='features/names')
+  h5write(obj=feature_types, file=h5_file, name='features/types')
+  h5write(obj=colnames(features_matrix), file=h5_file, name='features/names') # should be redundant
   h5write(obj=rownames(features_matrix), file=h5_file, name='features/cell_ids')
 
   for(i in colnames(features_matrix))
