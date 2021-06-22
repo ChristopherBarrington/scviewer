@@ -114,7 +114,7 @@ Get a feature values matrix" />
 <p>Get a feature values matrix</p>
     </div>
 
-    <pre class="usage"><span class='fu'>write_features</span><span class='op'>(</span><span class='va'>h5_file</span>, <span class='va'>features_matrix</span>, <span class='va'>...</span>, dry_run <span class='op'>=</span> <span class='cn'>FALSE</span><span class='op'>)</span>
+    <pre class="usage"><span class='fu'>write_features</span><span class='op'>(</span><span class='va'>h5_file</span>, <span class='va'>features_matrix</span>, <span class='va'>feature_types</span>, <span class='va'>...</span>, dry_run <span class='op'>=</span> <span class='cn'>FALSE</span><span class='op'>)</span>
 
 <span class='fu'>guess_features_matrix</span><span class='op'>(</span><span class='va'>seurat</span>, <span class='va'>...</span><span class='op'>)</span></pre>
 
@@ -130,6 +130,10 @@ Get a feature values matrix" />
       <td><p>Matrix of cells (rows) and features (columns)</p></td>
     </tr>
     <tr>
+      <th>feature_types</th>
+      <td><p>A list of feature names indexed by feature type</p></td>
+    </tr>
+    <tr>
       <th>...</th>
       <td><p>Ignored</p></td>
     </tr>
@@ -141,7 +145,8 @@ Get a feature values matrix" />
 
     <h2 class="hasAnchor" id="details"><a class="anchor" href="#details"></a>Details</h2>
 
-    <p>Combines the <code>RNA@data</code> slot and any numeric meta data variables into a <code>feature_matrix</code>.</p>
+    <p>The <code>feature_names</code> list uses the feature type to influence types of plot and app behaviour so should be one of those recognised by the app. Defaults to <code>any</code> if not specified.</p>
+<p>Combines the <code>RNA@data</code> slot and any numeric meta data variables into a <code>feature_matrix</code>.</p>
     <h2 class="hasAnchor" id="functions"><a class="anchor" href="#functions"></a>Functions</h2>
 
     
