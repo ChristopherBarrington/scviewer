@@ -3,16 +3,13 @@
 #' 
 #' @import plotly
 #' 
-#' @importFrom dqshiny hidden
-#' @importFrom dqshiny update_autocomplete_input
+#' @importFrom dqshiny hidden update_autocomplete_input
 #' @importFrom grid grid.draw
 #' @importFrom gtable is.gtable
 #' @importFrom RColorBrewer brewer.pal 
 #' @importFrom rhdf5 h5read
-#' @importFrom scales comma
-#' @importFrom scales squish
-#' @importFrom shinyWidgets pickerInput
-#' @importFrom shinyWidgets sendSweetAlert
+#' @importFrom scales comma squish
+#' @importFrom shinyWidgets pickerInput sendSweetAlert
 #' @importFrom stringi stri_rand_strings
 #' 
 server <- function(input, output, session) {

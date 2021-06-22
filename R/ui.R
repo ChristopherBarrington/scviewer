@@ -7,8 +7,7 @@
 #' @importFrom dqshiny autocomplete_input
 #' @importFrom esquisse palettePicker
 #' @importFrom plotly plotlyOutput
-#' @importFrom scales brewer_pal
-#' @importFrom scales viridis_pal
+#' @importFrom scales brewer_pal viridis_pal
 #' @importFrom shinyWidgets prettySwitch
 #' @importFrom waiter use_waiter
 #' 

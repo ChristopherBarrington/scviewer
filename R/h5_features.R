@@ -48,8 +48,7 @@ write_features <- function(h5_file, features_matrix, ..., dry_run=FALSE) {
 #' 
 #' @describeIn write_features Create a feature values matrix using default features
 #' 
-#' @importFrom Matrix as.matrix
-#' @importFrom Matrix t
+#' @importFrom Matrix as.matrix t
 #' @importFrom Seurat Assays
 #' 
 guess_features_matrix <- function(seurat, ...) {
