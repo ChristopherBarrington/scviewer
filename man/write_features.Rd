@@ -5,7 +5,7 @@
 \alias{guess_features_matrix}
 \title{Write feature values to a h5 file}
 \usage{
-write_features(h5_file, features_matrix, ..., dry_run = FALSE)
+write_features(h5_file, features_matrix, feature_types, ..., dry_run = FALSE)
 
 guess_features_matrix(seurat, ...)
 }
@@ -13,6 +13,8 @@ guess_features_matrix(seurat, ...)
 \item{h5_file}{Path to \code{h5} file}
 
 \item{features_matrix}{Matrix of cells (rows) and features (columns)}
+
+\item{feature_types}{A list of feature names indexed by feature type}
 
 \item{...}{Ignored}
 
@@ -24,6 +26,8 @@ Write feature values to a h5 file
 Get a feature values matrix
 }
 \details{
+The \code{feature_names} list uses the feature type to influence types of plot and app behaviour so should be one of those recognised by the app. Defaults to \code{any} if not specified.
+
 Combines the \code{RNA@data} slot and any numeric meta data variables into a \code{feature_matrix}.
 }
 \section{Functions}{
