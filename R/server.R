@@ -695,7 +695,7 @@ server <- function(input, output, session) {
 
     # make the data.frame and plot
     ### TODO: make this simpler, some parts can be shared surely
-    if(feature_type %in% c('gene', 'feature', 'any')) {
+    if(feature_type %in% c('count', 'any')) {
       cbind(metadata, feature_value=feature_values) %>%
         mutate_(cluster_id=cluster_identity_set_var) %>%
         add_column(feature_name=feature_name) %>%
