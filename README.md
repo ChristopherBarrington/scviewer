@@ -171,7 +171,7 @@ If the `Seurat` object contains numeric variables in the `meta.data` slot, these
 The following list adds all of the 'normal' features from the matrix into 'count' and selects the `seurat@meta.data` variables (which will become features) that start with 'ModuleScore'.
 
 ```R
-feature_types <- list(count=colnames(seurat), module_score={colnames(seurat@meta.data) %>% str_subset('^ModuleScore:')})
+feature_types <- list(count=rownames(seurat), module_score={colnames(seurat@meta.data) %>% str_subset('^ModuleScore:')})
 write_features(h5_file=h5_file, seurat=seurat, feature_types=feature_types) # uses `guess_features_matrix` to collect normalised RNA and numeric meta data
 ```
 
