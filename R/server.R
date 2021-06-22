@@ -654,12 +654,9 @@ server <- function(input, output, session) {
     palette_direction <- 1
 
     feature_values %>% digest() %>% sprintf(fmt='(output$grouped_feature_values_barplot) values: %s') %>% log_message()
+    sprintf(fmt='(output$grouped_feature_values_barplot) got a feature_type [%s] for feature [%s]', feature_type, feature_name) %>% log_message(prepend='===')
 
-
-
-
-
-    
+    # TODO: move this function and make is accessible by all
     get_gradient <- function(palette_package, picked_palette, palette_direction=1, range) {
       range %>%
         sign() %>%
