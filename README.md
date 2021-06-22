@@ -164,6 +164,17 @@ write_features(h5_file=h5_file, seurat=seurat) # uses `guess_features_matrix` to
 write_features(h5_file=h5_file, features_matrix=features_matrix) # user-defined feature values matrix
 ```
 
+#### Module scores
+
+If the `Seurat` object contains numeric variables in the `meta.data` slot, these will be added to the feature matrix. To tell `scviewer` what type of feature these are, the `feature_types` argument can be defined, if not everything is assumed to be a 'count'.
+
+The following list adds all of the 'normal' features from the matrix into 'count' and selects the `seurat@meta.data` variables (which will become features) that start with 'ModuleScore'.
+
+```R
+feature_types <- list(count=colnames(seurat), module_score={colnames(seurat@meta.data) %>% str_subset('^ModuleScore:')})
+write_features(h5_file=h5_file, seurat=seurat, feature_types=feature_types) # uses `guess_features_matrix` to collect normalised RNA and numeric meta data
+```
+
 ### Dataset metadata
 
 The metadata is extracted and subset. Any cell filters need to be defined here - these are one or more variables that can be used to determine if a cell should be displayed. The logic uses `%in%` to identify cells whose filter value is selected. In this example, I create a `dataset_filter` which reformats the `orig.ident` and adds in the number of cells in the filter. Cluster identities are defined here too, keeping any variable with the '\_snn_res' string in this case. But these variables are completely flexible, any names and any content. 
