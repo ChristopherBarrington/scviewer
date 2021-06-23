@@ -703,8 +703,8 @@ server <- function(input, output, session) {
         summarise(expressing_cells=n(),
                   mean_value=mean(feature_value),
                   median_value=median(feature_value),
-                  from_value=quantile(feature_value, 0.25),
-                  to_value=quantile(feature_value, 0.75)) %>%
+                  lower_quartile=quantile(feature_value, 0.25),
+                  upper_quartile=quantile(feature_value, 0.75)) %>%
         mutate(cluster_id=fct_relevel(cluster_id, rev)) %>%
         {ggplot(data=.) +
          aes(x=cluster_id, y=expressing_cells/cells_in_group*100, fill=mean_value) +
@@ -740,23 +740,22 @@ server <- function(input, output, session) {
       cbind(metadata, feature_value=feature_values) %>%
         mutate_(cluster_id=cluster_identity_set_var) %>%
         group_by(cluster_id) %>%
-        mutate(cells_in_group=n()) %>%
-        group_by(cells_in_group, add=TRUE) %>%
         summarise(mean_value=mean(feature_value),
                   median_value=median(feature_value),
-                  lower_quartile=quantile(feature_value, 0.25),
-                  upper_quartile=quantile(feature_value, 0.75)) %>%
+                  lower_quartile=quantile(feature_value, p=0.25),
+                  upper_quartile=quantile(feature_value, p=0.75)) %>%
         mutate(cluster_id=fct_relevel(cluster_id, rev)) %>%
         {ggplot(data=.) +
-         aes(x=cluster_id, y=mean_value, ymin=lower_quartile, ymax=upper_quartile, fill=mean_value) +
+         aes(x=cluster_id, fill=mean_value) +
          labs(x='Group ID',
               y='Module score',
               fill='Mean',
               size='Absolute\nmedian',
               title=sprintf(fmt='%s in cell clusters', feature_name)) +
          geom_hline(yintercept=0, colour='grey85', linetype='33', size=rel(0.5)) +
-         geom_linerange(colour='grey0', linetype='solid', size=1) +
-         geom_point(shape=21, colour='grey0', stroke=1, size=5) +
+         geom_linerange(mapping=aes(ymin=lower_quartile, ymax=upper_quartile), colour='grey0', linetype='solid', size=1) +
+         geom_point(mapping=aes(y=median_value), shape=18, colour='grey0', size=3.5) +
+         geom_point(mapping=aes(y=mean_value), shape=21, colour='grey0', stroke=1, size=5) +
          scale_x_discrete(drop=FALSE) +
          scale_y_continuous() +
          get_gradient(palette_package='brewer', picked_palette='Spectral', palette_direction=-1, range=range(.$mean_value)) +
