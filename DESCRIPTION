@@ -11,7 +11,7 @@ Description: Provides a Shiny app to display single-cell datasets.
 License: What license it uses
 Encoding: UTF-8
 LazyData: true
-Imorts:
+Imports:
   grid,
   rhdf5,
   stringi,
