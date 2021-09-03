@@ -11,6 +11,9 @@ Description: Provides a Shiny app to display single-cell datasets.
 License: What license it uses
 Encoding: UTF-8
 LazyData: true
+biocViews:
+Remotes:
+  daqana/dqshiny
 Imports:
   grid,
   rhdf5,
