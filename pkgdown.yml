@@ -1,8 +1,8 @@
-pandoc: 2.14.0.3
+pandoc: 2.7.3
 pkgdown: 1.6.1
 pkgdown_sha: ~
 articles: {}
-last_built: 2021-09-10T10:46Z
+last_built: 2021-09-10T11:15Z
 urls:
   reference: https://christopherbarrington.github.io/scviewer/reference
   article: https://christopherbarrington.github.io/scviewer/articles
