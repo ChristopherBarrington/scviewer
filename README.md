@@ -37,7 +37,7 @@ Once this repository has been cloned, the `scviewer` package can be loaded witho
 devtools::load_all('scviewer', export_all=FALSE)
 ```
 
-or with installation by `remotes` or `renv`:
+or with installation by `remotes` or `renv` (don't install it twice!):
 
 ```R
 remotes::install_github(repo='ChristopherBarrington/scviewer')
