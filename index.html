@@ -111,9 +111,10 @@
 <p>Once this repository has been cloned, the <code>scviewer</code> package can be loaded without installation:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu">devtools</span><span class="fu">::</span><span class="fu">load_all</span><span class="op">(</span><span class="st">'scviewer'</span>, export_all<span class="op">=</span><span class="cn">FALSE</span><span class="op">)</span></code></pre></div>
-<p>or with installation:</p>
+<p>or with installation by <code>remotes</code> or <code>renv</code>:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span>repo<span class="op">=</span><span class="st">'ChristopherBarrington/scviewer'</span><span class="op">)</span>
+<span class="fu">renv</span><span class="fu">::</span><span class="fu">install</span><span class="op">(</span><span class="st">'ChristopherBarrington/scviewer'</span><span class="op">)</span>
 <span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">scviewer</span><span class="op">)</span></code></pre></div>
 <p>To use the package to create files only, any shiny-related missing library warnings can be ignored.</p>
 <p>Load the seurat object, here I use <code>readRDS</code> but any equivalent method to get an object should be fine. I also define a path into which the <code>h5</code> files should be written. Any method to define these variable would work.</p>
