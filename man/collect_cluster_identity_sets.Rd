@@ -24,7 +24,7 @@ Write cell cluster sets to a h5 file
 Get cluster identity sets
 }
 \details{
-Selects \verb{_snn_res} variables as cluster identity sets and selects all identities by default.
+Selects \code{seurat_clusters} and \verb{_snn_res} variables as cluster identity sets and selects all identities by default.
 }
 \section{Functions}{
 \itemize{

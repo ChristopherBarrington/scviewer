@@ -30,7 +30,7 @@ write_cluster_identity_sets <- function(h5_file, cluster_identity_sets, ...) {
 #' 
 #' @param seurat Seurat object
 #' 
-#' @details Selects `_snn_res` variables as cluster identity sets and selects all identities by default.
+#' @details Selects `seurat_clusters` and `_snn_res` variables as cluster identity sets and selects all identities by default.
 #' 
 #' @describeIn collect_cluster_identity_sets Select Seurat cluster identities
 #' 
