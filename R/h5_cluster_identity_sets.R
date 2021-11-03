@@ -37,8 +37,8 @@ write_cluster_identity_sets <- function(h5_file, cluster_identity_sets, ...) {
 guess_cluster_identity_sets <- function(seurat) {
   message('+ collecting cluster identity sets')
   seurat@meta.data %>%
+    select(any_of('seurat_clusters'), contains('_snn_res.')) %>%
     colnames() %>%
-    str_subset('_snn_res.') %>%
     set_names() %>%
-    lapply(function(x) list(var=x, name={str_remove(x, '^\\D+') %>% sprintf(fmt='Res. %s')}, selected=levels(seurat@meta.data[[x]])))
+    lapply(function(x) list(var=x, name={str_replace(x, '^.*_snn_res.', 'res._') %>% str_replace_all('_', ' ') %>% str_to_title()}, selected=levels(seurat@meta.data[[x]])))
 }
