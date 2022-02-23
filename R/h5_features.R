@@ -40,11 +40,13 @@ write_features <- function(h5_file, features_matrix, feature_types, ..., dry_run
   h5write(obj=rownames(features_matrix), file=h5_file, name='features/cell_ids')
 
   progress_bar <- txtProgressBar(min=1, max=ncol(features_matrix), initial=1, width=50, style=3)
+  step_i <- 1
   for(i in colnames(features_matrix)) {
-    setTxtProgressBar(pb=progress_bar, value=i)
+    setTxtProgressBar(pb=progress_bar, value=step_i)
     str_to_lower(i) %>%
       sprintf(fmt='features/values/%s') %>%
       h5write(obj=features_matrix[,i], file=h5_file)
+    step_i %<>% add(1)
   }
   close(progress_bar)
 
