@@ -281,7 +281,7 @@ The list of cell filters here is used to create the drop down UI elements and fi
 In this example, I define filters only for the 'datasets_filter' variable and specify that one dataset should be selected by default. (is functionality even working?!)
 
 ```R
-cell_filter_parameters <- list(`Constituent datasets`=list(var='datasets_filter', selected=c('E85 (n=477)'))) %>%
+cell_filter_parameters <- list(`Constituent datasets`=list(var='datasets_filter', selected=c('E85 (n=477)')))
 write_cell_filter_parameters(h5_file=h5_file, cell_filter_parameters=cell_filter_parameters)
 ```
 
