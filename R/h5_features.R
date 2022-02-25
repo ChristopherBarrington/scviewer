@@ -2,8 +2,8 @@
 #' Write feature values to a h5 file
 #' 
 #' @param h5_file Path to `h5` file
-#' @param features_matrix Matrix of cells (rows) and features (columns)
 #' @param feature_types A list of feature names indexed by feature type
+#' @param features_matrix Matrix of cells (rows) and features (columns)
 #' @param ... Arguments passed to `guess_features_matrix`
 #' 
 #' @details
@@ -15,7 +15,7 @@
 #' 
 #' @export
 #' 
-write_features <- function(h5_file, features_matrix, feature_types, ..., dry_run=FALSE) {
+write_features <- function(h5_file, feature_types, features_matrix, ..., dry_run=FALSE) {
   if(h5ls(h5_file, recursive=1) %>% pluck('name') %>% is_in(x='features')) {
     message('- deleting features')
     h5delete(file=h5_file, name='features')
