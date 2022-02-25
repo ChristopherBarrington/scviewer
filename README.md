@@ -226,7 +226,7 @@ A list is created that determines which cluster sets to include in the drop down
 * `selected` is a vector of cluster identities (which should be levels of the `var`) to show by default
 
 ```R
-> cluster_identity_sets <- guess_cluster_identity_sets(seurat)
+> cluster_identity_sets <- scviewer:::guess_cluster_identity_sets(seurat)
 > head(cluster_identity_sets, n=3)
 $RNA_snn_res.0.2
 $RNA_snn_res.0.2$var
