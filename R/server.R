@@ -229,10 +229,12 @@ server <- function(input, output, session) {
 
     sprintf('(reduction_coords) reading reduction [%s] from: %s', reduction_method, h5_file) %>% log_message()
 
-    name_2d <- reduction_method
-    name_3d <- str_c(reduction_method, '_3d')
+    name_2d <- str_c(reduction_method, c('', '_2d', '.2d')) %>% subset(is_in(., Reductions(seurat)))
+    name_3d <- str_c(reduction_method, c('', '_3d', '.3d')) %>% subset(is_in(., Reductions(seurat)))
 
     reductions[c(name_2d, name_3d)] %>%
+      when(length(.)!=2 ~ stop('Exactly 2 reductions needed!', call.=FALSE),
+           TRUE ~ .) %>%
       purrr::set_names(c('d2','d3'))}) -> reduction_coords
 
 
