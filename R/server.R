@@ -88,16 +88,22 @@ server <- function(input, output, session) {
       deframe() -> feature_names_2_types
 
     ##### dimension reduction methods
-    reduction_names <- c(umap='UMAP', tsne='tSNE', pca='PCA')
+    reduction_names <- c(umap='UMAP', tsne='tSNE', pca='PCA', lsi='LSI')
     
     names(reductions) %>%
-      str_remove('_3d$') %>%
+      str_remove('(_|\\.)(2|3)d$') %>%
       unique() %>%
       set_names() -> available_reductions
     
+    # available_reductions %>%
+    #   as.list() %>%
+    #   set_names(function(x) extract(reduction_names, x)) -> reduction_choices
     available_reductions %>%
       as.list() %>%
-      set_names(function(x) extract(reduction_names, x)) -> reduction_choices
+      set_names(function(name)
+        str_split(name, '\\.') %>%
+          lapply(function(x) {x[1] <- reduction_names[x[1]]; x}) %>%
+          sapply(str_c, collapse='.')) -> reduction_choices
     
     available_reductions %>%
       preferred_choice(preferences=names(reduction_names), default=1) -> selected_reduction
