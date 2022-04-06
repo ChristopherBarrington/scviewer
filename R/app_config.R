@@ -42,10 +42,12 @@ get_config_values <- function(config, key)
 #' 
 #' @param values A named vector from which a values is chosen
 #' @param priority A ranked set of keys
+#' @param missing Value returned when none of the `priority` values are not NA
 #' 
-get_prioritised_value <- function(values, priority)
+get_prioritised_value <- function(values, priority, missing='missing')
   priority %>%
     sapply(pluck, .x=values, .default=NA, simplify=TRUE) %>%
+    c(missing) %>%
     na.omit() %>%
     head(n=1) %>%
     unname()
