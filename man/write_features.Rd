@@ -5,16 +5,16 @@
 \alias{guess_features_matrix}
 \title{Write feature values to a h5 file}
 \usage{
-write_features(h5_file, features_matrix, feature_types, ..., dry_run = FALSE)
+write_features(h5_file, feature_types, features_matrix, ..., dry_run = FALSE)
 
 guess_features_matrix(seurat, ...)
 }
 \arguments{
 \item{h5_file}{Path to \code{h5} file}
 
-\item{features_matrix}{Matrix of cells (rows) and features (columns)}
-
 \item{feature_types}{A list of feature names indexed by feature type}
+
+\item{features_matrix}{Matrix of cells (rows) and features (columns)}
 
 \item{...}{Ignored}
 

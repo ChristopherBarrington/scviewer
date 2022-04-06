@@ -4,12 +4,14 @@
 \alias{get_prioritised_value}
 \title{Pluck nested values from config in order of priority}
 \usage{
-get_prioritised_value(values, priority)
+get_prioritised_value(values, priority, missing = "missing")
 }
 \arguments{
 \item{values}{A named vector from which a values is chosen}
 
 \item{priority}{A ranked set of keys}
+
+\item{missing}{Value returned when none of the \code{priority} values are not NA}
 }
 \description{
 Pluck nested values from config in order of priority
