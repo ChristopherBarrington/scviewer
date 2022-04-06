@@ -43,6 +43,6 @@ guess_cluster_identity_sets <- function(seurat) {
     set_names() %>%
     lapply(function(x)
       list(var=x,
-           name={x %>% when(.=='seurat_clusters'~'Seurat clusters', TRUE~str_replace(., '^(.+)_snn_res\\.(.+)$', '\\1, res=\\2') %>% str_replace_all('_', ' '))},
+           name={x %>% when(.=='seurat_clusters'~'Seurat clusters', TRUE~str_replace(., '^(.+)_snn_res\\.(.+)$', 'Res=\\2 (\\1)') %>% str_replace_all('_', ' '))},
            selected=levels(seurat@meta.data[[x]])))
 }
