@@ -139,7 +139,7 @@ server <- function(input, output, session) {
     removeUI(selector='#cluster_set_filter', immediate=TRUE) # clear UI elements that are already drawn
     removeUI(selector='#cluster_identitites_filter', immediate=TRUE) # clear UI elements that are already drawn
     pickerInput(inputId='cluster_identity_set_index', label='Cluster identity sets',
-                choices=cluster_identity_sets_choices, selected=default_cluster_identity_name,
+                choices=cluster_identity_sets_choices, selected=initial_cluster_identity_set,
                 options=list(`actions-box`=TRUE, size=9),
                 multiple=FALSE) %>%
       (function(p) if(n_cluster_identity_sets==1) hidden(p) else p) %>%
