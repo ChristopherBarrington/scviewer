@@ -68,6 +68,10 @@ server <- function(input, output, session) {
       get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default'), missing='unspecified') %T>%
       (. %>% sprintf(fmt='(app_data) initial_reduction: %s') %>% log_message(prepend='+++')) -> initial_reduction
 
+    get_config_values(app_config, 'initial_cluster_identity_set') %>%
+      get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default'), missing=1) %T>%
+      (. %>% sprintf(fmt='(app_data) initial_cluster_identity_set: %s') %>% log_message(prepend='+++')) -> initial_cluster_identity_set
+
     #### load metadata table
     sprintf(fmt='(add_data) collecting metadata') %>% log_message(prepend='+++')
     metadata_list <- h5read(file=h5_file, name='metadata')
@@ -127,7 +131,7 @@ server <- function(input, output, session) {
       metadata_list$data %<>% mutate(monocluster=factor('All cells'))
     }
 
-    cluster_identity_sets %>% pluck(1, 'name') -> default_cluster_identity_name 
+    cluster_identity_sets %>% pluck(initial_cluster_identity_set, 'name') -> default_cluster_identity_name 
     cluster_identity_sets %>% length() -> n_cluster_identity_sets
     cluster_identity_sets %>% lapply(pluck, 'name') %>% {set_names(names(.), unlist(.))} -> cluster_identity_sets_choices
 
@@ -135,7 +139,7 @@ server <- function(input, output, session) {
     removeUI(selector='#cluster_set_filter', immediate=TRUE) # clear UI elements that are already drawn
     removeUI(selector='#cluster_identitites_filter', immediate=TRUE) # clear UI elements that are already drawn
     pickerInput(inputId='cluster_identity_set_index', label='Cluster identity sets',
-                choices=cluster_identity_sets_choices, selected=default_cluster_identity_name,
+                choices=cluster_identity_sets_choices, selected=initial_cluster_identity_set,
                 options=list(`actions-box`=TRUE, size=9),
                 multiple=FALSE) %>%
       (function(p) if(n_cluster_identity_sets==1) hidden(p) else p) %>%
@@ -170,6 +174,7 @@ server <- function(input, output, session) {
     list(dataset_key=input_dataset_key,
          h5_file=h5_file,
          initial_feature=initial_feature,
+         initial_reduction=initial_reduction,
          reductions=reductions,
          metadata=metadata_list$data,
          cell_filter_parameters=cell_filter_parameters,
