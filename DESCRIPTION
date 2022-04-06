@@ -1,6 +1,6 @@
 Package: scviewer
 Title: A Shiny App to Display Single-Cell -Seq Datasets
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: 
     person(given='Christopher',
            family='Barrington',
