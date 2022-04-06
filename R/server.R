@@ -59,25 +59,34 @@ server <- function(input, output, session) {
       return(NULL)
     }
 
-    #### get the initial feature from the config file
+    #### get the initial values from the config file
     get_config_values(app_config, 'initial_feature') %>%
       get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default')) %T>%
       (. %>% sprintf(fmt='(app_data) initial_feature: %s') %>% log_message(prepend='+++')) -> initial_feature
 
+    get_config_values(app_config, 'initial_reduction') %>%
+      get_prioritised_value(priority=c(input_dataset_key, dataset_selection$L1, 'default'), missing='unspecified') %T>%
+      (. %>% sprintf(fmt='(app_data) initial_reduction: %s') %>% log_message(prepend='+++')) -> initial_reduction
+
     #### load metadata table
+    sprintf(fmt='(add_data) collecting metadata') %>% log_message(prepend='+++')
     metadata_list <- h5read(file=h5_file, name='metadata')
 
     ##### for each would-be-factor variable in metadata_list$data, update the factor levels using metadata_list$factor_levels
+    sprintf(fmt='(add_data) adding factor levels') %>% log_message(prepend='+++')
     for(i in names(metadata_list$factor_levels))
       metadata_list$data %<>%
         mutate(across(.cols=i, function(x) factor(metadata_list$factor_levels[[i]][x], levels=metadata_list$factor_levels[[i]])))
 
     #### pull out the list of reductions
+    sprintf(fmt='(add_data) collecting reductions') %>% log_message(prepend='+++')
     reductions <- h5read(file=h5_file, name='reductions')
 
     #### update UI elements
+    sprintf(fmt='(add_data) updating ui elements') %>% log_message(prepend='+++')
+
     ##### features dropdown
-    # all_features <- h5read(file=h5_file, name='features/names')
+    sprintf(fmt='(add_data) updating feature name options') %>% log_message(prepend='+++')
     h5read(file=h5_file, name='features/types') %>%
       tibble(type=names(.), name=.) %>%
       unnest(cols=name) %T>%
@@ -88,6 +97,7 @@ server <- function(input, output, session) {
       deframe() -> feature_names_2_types
 
     ##### dimension reduction methods
+    sprintf(fmt='(add_data) updating reduction method selector') %>% log_message(prepend='+++')
     reduction_names <- c(umap='UMAP', tsne='tSNE', pca='PCA', lsi='LSI')
     
     names(reductions) %>%
@@ -95,9 +105,6 @@ server <- function(input, output, session) {
       unique() %>%
       set_names() -> available_reductions
     
-    # available_reductions %>%
-    #   as.list() %>%
-    #   set_names(function(x) extract(reduction_names, x)) -> reduction_choices
     available_reductions %>%
       as.list() %>%
       set_names(function(name)
@@ -105,8 +112,9 @@ server <- function(input, output, session) {
           lapply(function(x) {x[1] <- reduction_names[x[1]]; x}) %>%
           sapply(str_c, collapse='.')) -> reduction_choices
     
-    available_reductions %>%
-      preferred_choice(preferences=names(reduction_names), default=1) -> selected_reduction
+    initial_reduction %>%
+      when(.=='unspecified' ~ preferred_choice(x=available_reductions, preferences=names(reduction_names), default=1),
+           TRUE ~ initial_reduction) -> selected_reduction
 
     updateSelectInput(session=session, inputId='reduction_method',
                       choices=reduction_choices, selected=selected_reduction) # update the reduction methods ui element
@@ -229,8 +237,8 @@ server <- function(input, output, session) {
 
     sprintf('(reduction_coords) reading reduction [%s] from: %s', reduction_method, h5_file) %>% log_message()
 
-    name_2d <- str_c(reduction_method, c('', '_2d', '.2d')) %>% subset(is_in(., Reductions(seurat)))
-    name_3d <- str_c(reduction_method, c('', '_3d', '.3d')) %>% subset(is_in(., Reductions(seurat)))
+    name_2d <- str_c(reduction_method, c('', '_2d', '.2d')) %>% subset(is_in(., names(reductions)))
+    name_3d <- str_c(reduction_method, c('', '_3d', '.3d')) %>% subset(is_in(., names(reductions)))
 
     reductions[c(name_2d, name_3d)] %>%
       when(length(.)!=2 ~ stop('Exactly 2 reductions needed!', call.=FALSE),
