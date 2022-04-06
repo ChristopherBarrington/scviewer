@@ -15,24 +15,24 @@ biocViews:
 Remotes:
   daqana/dqshiny
 Imports:
-  grid,
-  rhdf5,
-  stringi,
-  plotly,
-  waiter,
-  esquisse,
-  gtools,
-  scales,
-  RColorBrewer,
-  shiny,
-  shinyWidgets,
   dashboardthemes,
   dqshiny,
+  esquisse,
+  grid,
+  gtools,
+  plotly,
+  RColorBrewer,
+  rhdf5,
+  scales,
+  Seurat,
+  shiny,
   shinydashboard,
-  Seurat
+  shinyWidgets,
+  stringi,
+  waiter
 Depends:
-  R (>= 3.5),
   magrittr,
+  R (>= 3.5),
   tidyverse
 Roxygen: list(markdown=TRUE)
 RoxygenNote: 7.1.2
