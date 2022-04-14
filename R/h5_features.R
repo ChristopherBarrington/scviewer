@@ -34,6 +34,10 @@ write_features <- function(h5_file, feature_types, features_matrix, ..., dry_run
   if(missing(feature_types))
     feature_types <- list(any=colnames(features_matrix))
 
+  message('+ checking features all have types')
+  if(ncol(features_matrix) != {feature_types %>% sapply(length) %>% sum()})
+    stop('! check that every feature has precisely one type in feature_types argument', call.=FALSE)
+
   message('+ writing features')
   h5write(obj=feature_types, file=h5_file, name='features/types')
   h5write(obj=colnames(features_matrix), file=h5_file, name='features/names') # should be redundant
