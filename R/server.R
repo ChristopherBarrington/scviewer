@@ -98,7 +98,8 @@ server <- function(input, output, session) {
                                  options=.$name,
                                  value=initial_feature)} %>% # put the features in the text input ui element
       select(name, type) %>%
-      deframe() -> feature_names_2_types
+      deframe() %>%
+      as.list() -> feature_names_2_types
 
     ##### dimension reduction methods
     sprintf(fmt='(add_data) updating reduction method selector') %>% log_message(prepend='+++')
@@ -669,7 +670,7 @@ server <- function(input, output, session) {
 
     feature_values <- selected_feature$values
     feature_name <- selected_feature$name
-    feature_type <- app_data$feature_names_2_types[feature_name]
+    feature_type <- app_data$feature_names_2_types[[feature_name]] %||% 'any'
     palette_package <- 'brewer'
     picked_palette <- 'YlOrRd'
     palette_direction <- 1
@@ -713,51 +714,7 @@ server <- function(input, output, session) {
 
     # make the data.frame and plot
     ### TODO: make this simpler, some parts can be shared surely
-    if(feature_type %in% c('count', 'any')) {
-      cbind(metadata, feature_value=feature_values) %>%
-        mutate_(cluster_id=cluster_identity_set_var) %>%
-        add_column(feature_name=feature_name) %>%
-        group_by(cluster_id, feature_name) %>%
-        mutate(cells_in_group=n()) %>%
-        filter(feature_value>0) %>% # only use cells with non-zero expression
-        group_by(cells_in_group, add=TRUE) %>%
-        summarise(expressing_cells=n(),
-                  mean_value=mean(feature_value),
-                  median_value=median(feature_value),
-                  lower_quartile=quantile(feature_value, 0.25),
-                  upper_quartile=quantile(feature_value, 0.75)) %>%
-        mutate(cluster_id=fct_relevel(cluster_id, rev)) %>%
-        {ggplot(data=.) +
-         aes(x=cluster_id, y=expressing_cells/cells_in_group*100, fill=mean_value) +
-         labs(x='Group ID',
-              y='Detected in cells within cluster',
-              fill=sprintf(fmt='%s\n(mean)', feature_name),
-              title=sprintf(fmt='%s in cell clusters', feature_name)) +
-         geom_point(shape=21, colour='grey0', stroke=1, size=5) +
-         scale_x_discrete(drop=FALSE) +
-         scale_y_continuous(labels=function(y) str_c(y, '%')) +
-         get_gradient(palette_package='brewer', picked_palette='YlOrRd', range=range(.$mean_value)) +
-         coord_flip() +
-         guides(colour='none', 
-                fill=guide_colourbar(order=2, frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2), 
-                size=guide_legend(order=3)) +
-         theme_bw() +
-         theme(axis.text.y=element_text(face='bold', size=rel(1.5)),
-               axis.ticks.x=element_line(size=rel(0.5)),
-               axis.ticks.y=element_line(size=rel(3)),
-               axis.title.y=element_blank(),
-               legend.background=element_blank(),
-               legend.key=element_blank(),
-               panel.background=element_rect(fill=panel_background_rgb),
-               panel.border=element_rect(size=1, colour='black'),
-               panel.grid.major.x=element_blank(),
-               panel.grid.major.y=element_line(colour='grey85'),
-               panel.grid.minor.x=element_blank(),
-               panel.grid.minor.y=element_blank(),
-               plot.background=element_blank(),
-               text=element_text(size=14))} %>%
-        ggplotGrob() -> gg
-    } else if(feature_type %in% c('module_score')) {
+    if(feature_type %in% c('module_score')) {
       cbind(metadata, feature_value=feature_values) %>%
         mutate_(cluster_id=cluster_identity_set_var) %>%
         group_by(cluster_id) %>%
@@ -801,8 +758,49 @@ server <- function(input, output, session) {
                text=element_text(size=14))} %>%
         ggplotGrob() -> gg
     } else {
-      sprintf(fmt='(output$grouped_feature_values_barplot) do not know what to do with feature_type: %s', feature_type) %>% log_message(prepend='!!!')
-      return(NULL)
+      cbind(metadata, feature_value=feature_values) %>%
+        mutate_(cluster_id=cluster_identity_set_var) %>%
+        add_column(feature_name=feature_name) %>%
+        group_by(cluster_id, feature_name) %>%
+        mutate(cells_in_group=n()) %>%
+        filter(feature_value>0) %>% # only use cells with non-zero expression
+        group_by(cells_in_group, add=TRUE) %>%
+        summarise(expressing_cells=n(),
+                  mean_value=mean(feature_value),
+                  median_value=median(feature_value),
+                  lower_quartile=quantile(feature_value, 0.25),
+                  upper_quartile=quantile(feature_value, 0.75)) %>%
+        mutate(cluster_id=fct_relevel(cluster_id, rev)) %>%
+        {ggplot(data=.) +
+         aes(x=cluster_id, y=expressing_cells/cells_in_group*100, fill=mean_value) +
+         labs(x='Group ID',
+              y='Detected in cells within cluster',
+              fill=sprintf(fmt='%s\n(mean)', feature_name),
+              title=sprintf(fmt='%s in cell clusters', feature_name)) +
+         geom_point(shape=21, colour='grey0', stroke=1, size=5) +
+         scale_x_discrete(drop=FALSE) +
+         scale_y_continuous(labels=function(y) str_c(y, '%')) +
+         get_gradient(palette_package='brewer', picked_palette='YlOrRd', range=range(.$mean_value)) +
+         coord_flip() +
+         guides(colour='none', 
+                fill=guide_colourbar(order=2, frame.colour='black', frame.linewidth=2, ticks.colour='black', ticks.linewidth=2), 
+                size=guide_legend(order=3)) +
+         theme_bw() +
+         theme(axis.text.y=element_text(face='bold', size=rel(1.5)),
+               axis.ticks.x=element_line(size=rel(0.5)),
+               axis.ticks.y=element_line(size=rel(3)),
+               axis.title.y=element_blank(),
+               legend.background=element_blank(),
+               legend.key=element_blank(),
+               panel.background=element_rect(fill=panel_background_rgb),
+               panel.border=element_rect(size=1, colour='black'),
+               panel.grid.major.x=element_blank(),
+               panel.grid.major.y=element_line(colour='grey85'),
+               panel.grid.minor.x=element_blank(),
+               panel.grid.minor.y=element_blank(),
+               plot.background=element_blank(),
+               text=element_text(size=14))} %>%
+        ggplotGrob() -> gg
     }
 
     ### modify the (rotated) y-axis label grobs so the text is coloured to match the cluster_id of the scatterplot(s)
