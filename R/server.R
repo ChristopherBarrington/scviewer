@@ -242,9 +242,13 @@ server <- function(input, output, session) {
     reduction_method <- input$reduction_method
 
     sprintf('(reduction_coords) reading reduction [%s] from: %s', reduction_method, h5_file) %>% log_message()
+    sprintf('(reduction_coords) reductions list has %s reductions', length(reductions)) %>% log_message()
+    sprintf('(reduction_coords) available reductions in list: %s', names(reductions) %>% str_c(collapse=', ')) %>% log_message()
 
     name_2d <- str_c(reduction_method, c('', '_2d', '.2d')) %>% subset(is_in(., names(reductions)))
     name_3d <- str_c(reduction_method, c('_3d', '.3d')) %>% subset(is_in(., names(reductions)))
+
+    sprintf('(reduction_coords) expected reduction names: %s and %s', name_2d, name_3d) %>% log_message()
 
     reductions[c(name_2d, name_3d)] %>%
       when(length(.)!=2 ~ stop('Exactly 2 reductions needed!', call.=FALSE),
