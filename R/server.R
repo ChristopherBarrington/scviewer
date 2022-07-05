@@ -27,11 +27,11 @@ server <- function(input, output, session) {
 
   packageVersion('scviewer') %>%
     sprintf(fmt='(server) using scviewer version %s') %>%
-    log_message()
+    cat(file=stderr())
 
   find.package('Seurat') %>%
     sprintf(fmt='(server) scviewer package is located at: %s') %>%
-    log_message()
+    cat(file=stderr())
 
   ## get UI inputs
   ### load the dataset file
