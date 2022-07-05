@@ -25,6 +25,13 @@ server <- function(input, output, session) {
 
   app_config <- load_app_config('config.yaml')
 
+  packageVersion('scviewer') %>%
+    sprintf(fmt='(server) using scviewer version %s') %>%
+    log_message()
+
+  find.package('Seurat') %>%
+    sprintf(fmt='(server) scviewer package is located at: %s') %>%
+    log_message()
 
   ## get UI inputs
   ### load the dataset file
