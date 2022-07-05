@@ -25,14 +25,6 @@ server <- function(input, output, session) {
 
   app_config <- load_app_config('config.yaml')
 
-  packageVersion('scviewer') %>%
-    sprintf(fmt='(server) using scviewer version %s') %>%
-    cat(file=stderr())
-
-  find.package('Seurat') %>%
-    sprintf(fmt='(server) scviewer package is located at: %s') %>%
-    cat(file=stderr())
-
   ## get UI inputs
   ### load the dataset file
   reactive(x={
@@ -40,6 +32,14 @@ server <- function(input, output, session) {
 
     input$filename %T>%
       (. %>% sprintf(fmt='(app_data) initialising from: %s') %>% log_message()) -> input_dataset_key
+
+    packageVersion('scviewer') %>%
+      sprintf(fmt='(server) using scviewer version %s') %>%
+      cat(file=stderr())
+
+    find.package('scviewer') %>%
+      sprintf(fmt='(server) scviewer package is located at: %s') %>%
+      cat(file=stderr())
 
     #### parse dropdown key to give levels 1 and 2 from the datasets key of the yaml config
     input_dataset_key %>%
