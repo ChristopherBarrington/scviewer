@@ -7,7 +7,7 @@ Authors@R:
            role=c('aut', 'cre'),
            email='christopher.barrington@crick.ac.uk',
            comment = c(ORCID='0000-0003-1281-2658'))
-Description: Provides a Shiny app to display single-cell datasets.
+Description: Provides a Shiny app to display single cell datasets.
 License: What license it uses
 Encoding: UTF-8
 LazyData: true
