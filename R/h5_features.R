@@ -31,6 +31,11 @@ write_features <- function(h5_file, feature_types, features_matrix, ..., dry_run
   if(dry_run)
     features_matrix <- features_matrix[,1:100]
 
+  if({features_matrix %>% colnames() %>% str_detect('/') %>% any()}) {
+    message('+ "/" detected in feature names; converted to "-"')
+    colnames(features_matrix) <- colnames(features_matrix) %>% str_replace_all('/', '-')
+  }
+
   if(missing(feature_types))
     feature_types <- list(any=colnames(features_matrix))
 
